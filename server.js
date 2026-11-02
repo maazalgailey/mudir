@@ -32,7 +32,8 @@ async function getJwtSecret() {
 
 // ---------- Integrations ----------
 const openaiEnabled = Boolean(process.env.OPENAI_API_KEY);
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+// gpt-4o-mini leaves the API on 2027-01-14; OpenAI names gpt-6-luna as its replacement.
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-6-luna';
 
 const emailEnabled = Boolean(process.env.SMTP_HOST && process.env.MAIL_FROM);
 const mailer = emailEnabled
@@ -375,7 +376,6 @@ async function openaiJSON(system, user) {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       response_format: { type: 'json_object' },
-      temperature: 0.6,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
