@@ -5,7 +5,6 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const { query, one, id } = require('./lib/db');
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -35,18 +34,93 @@ const openaiEnabled = Boolean(process.env.OPENAI_API_KEY);
 // gpt-4o-mini leaves the API on 2027-01-14; OpenAI names gpt-6-luna as its replacement.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-6-luna';
 
-const emailEnabled = Boolean(process.env.SMTP_HOST && process.env.MAIL_FROM);
-const mailer = emailEnabled
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-    })
-  : null;
+const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+const GOOGLE_REDIRECT = `${APP_URL}/api/google/callback`;
+const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const stripeEnabled = Boolean(stripe && process.env.STRIPE_PRICE_ID);
+
+// ---------- Messages (Arabic / English) ----------
+const MSG = {
+  ar: {
+    loginRequired: 'يرجى تسجيل الدخول',
+    nameRequired: 'الاسم مطلوب',
+    invalidEmail: 'البريد الإلكتروني غير صالح',
+    passwordShort: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+    emailTaken: 'هذا البريد مسجّل مسبقًا',
+    badLogin: 'البريد أو كلمة المرور غير صحيحة',
+    taskNotFound: 'المهمة غير موجودة',
+    titleRequired: 'عنوان المهمة مطلوب',
+    needDate: 'حدّد تاريخًا للمهمة أولًا',
+    draftLimit: 'وصلت إلى حد {limit} صياغات هذا الشهر. اشترك في الباقة الاحترافية للمزيد.',
+    aiUnavailable: 'تعذّر الاتصال بخدمة الذكاء الاصطناعي',
+    proOnly: 'ترتيب الأولويات الذكي متاح في الباقة الاحترافية.',
+    noOpenTasks: 'لا توجد مهام مفتوحة. أحسنت!',
+    autoPlan: 'ترتيب تلقائي حسب الأولوية والتاريخ.',
+    reasonOverdue: 'متأخرة عن موعدها',
+    reasonHigh: 'أولوية عالية',
+    reasonDate: 'حسب الموعد',
+    gmailNotConnected: 'اربط حساب Gmail من صفحة الحساب لإرسال البريد مباشرة.',
+    gmailReconnect: 'انتهت صلاحية ربط Gmail. يرجى ربطه من جديد من صفحة الحساب.',
+    confirmRequired: 'يجب تأكيد الإرسال',
+    recipientInvalid: 'بريد المستلم غير صالح',
+    subjectBodyRequired: 'العنوان والنص مطلوبان',
+    emailLimit: 'وصلت إلى حد {limit} رسالة بريد هذا الشهر.',
+    sendFailed: 'تعذّر إرسال البريد، حاول مرة أخرى.',
+    gmailOff: 'الإرسال عبر Gmail غير مفعّل على الخادم بعد.',
+    billingOff: 'الدفع غير مفعّل على الخادم بعد.',
+    checkoutFailed: 'تعذّر بدء عملية الدفع',
+    noSubscription: 'لا يوجد اشتراك لإدارته',
+    portalFailed: 'تعذّر فتح بوابة الاشتراك',
+    notAvailable: 'غير متاح',
+    notFound: 'غير موجود',
+    serverError: 'حدث خطأ في الخادم، حاول مرة أخرى',
+  },
+  en: {
+    loginRequired: 'Please sign in',
+    nameRequired: 'Name is required',
+    invalidEmail: 'Please enter a valid email address',
+    passwordShort: 'Password must be at least 8 characters',
+    emailTaken: 'This email is already registered',
+    badLogin: 'Incorrect email or password',
+    taskNotFound: 'Task not found',
+    titleRequired: 'Task title is required',
+    needDate: 'Set a date for this task first',
+    draftLimit: "You've used all {limit} drafts this month. Upgrade to Pro for more.",
+    aiUnavailable: "Couldn't reach the AI service",
+    proOnly: 'Smart prioritization is a Pro feature.',
+    noOpenTasks: 'No open tasks. Nice work!',
+    autoPlan: 'Sorted automatically by priority and date.',
+    reasonOverdue: 'Overdue',
+    reasonHigh: 'High priority',
+    reasonDate: 'By due date',
+    gmailNotConnected: 'Connect your Gmail on the Account page to send email directly.',
+    gmailReconnect: 'Your Gmail connection expired. Please reconnect it on the Account page.',
+    confirmRequired: 'Sending must be confirmed',
+    recipientInvalid: "The recipient's email is not valid",
+    subjectBodyRequired: 'Subject and message are required',
+    emailLimit: "You've reached {limit} emails this month.",
+    sendFailed: "Couldn't send the email. Please try again.",
+    gmailOff: 'Sending through Gmail is not enabled on the server yet.',
+    billingOff: 'Payments are not enabled on the server yet.',
+    checkoutFailed: "Couldn't start checkout",
+    noSubscription: 'No subscription to manage',
+    portalFailed: "Couldn't open the billing portal",
+    notAvailable: 'Not available',
+    notFound: 'Not found',
+    serverError: 'Something went wrong. Please try again.',
+  },
+};
+
+function langOf(req) {
+  const l = req.get('x-lang') || req.acceptsLanguages('ar', 'en') || 'ar';
+  return l === 'en' ? 'en' : 'ar';
+}
+
+function msg(req, key, vars = {}) {
+  return MSG[langOf(req)][key].replace(/\{(\w+)\}/g, (_, k) => vars[k]);
+}
 
 // ---------- Plans ----------
 const PLANS = {
@@ -83,7 +157,7 @@ function publicUser(user) {
     name: user.name,
     email: user.email,
     plan: user.plan,
-    emailConsent: user.email_consent,
+    gmail: user.google_refresh_token ? user.google_email : null,
     hasBilling: Boolean(user.stripe_customer_id),
     usage: usage(user),
     limits: PLANS[user.plan],
@@ -99,6 +173,7 @@ function taskOut(r) {
     date: r.date,
     time: r.time,
     priority: r.priority,
+    status: r.status,
     done: r.done,
     contactName: r.contact_name,
     contactEmail: r.contact_email,
@@ -177,15 +252,18 @@ async function setSession(res, user) {
   });
 }
 
-const auth = h(async (req, res, next) => {
-  let sub;
+async function sessionUser(req) {
   try {
-    ({ sub } = jwt.verify(req.cookies.session || '', await getJwtSecret()));
+    const { sub } = jwt.verify(req.cookies.session || '', await getJwtSecret());
+    return await one('SELECT * FROM users WHERE id = $1', [sub]);
   } catch {
-    return fail(res, 401, 'يرجى تسجيل الدخول');
+    return null;
   }
-  req.user = await one('SELECT * FROM users WHERE id = $1', [sub]);
-  if (!req.user) return fail(res, 401, 'يرجى تسجيل الدخول');
+}
+
+const auth = h(async (req, res, next) => {
+  req.user = await sessionUser(req);
+  if (!req.user) return fail(res, 401, msg(req, 'loginRequired'));
   next();
 });
 
@@ -196,9 +274,9 @@ const TIME_RE = /^\d{2}:\d{2}$/;
 // ---------- Config ----------
 app.get('/api/config', (req, res) => {
   res.json({
-    integrations: { openai: openaiEnabled, email: emailEnabled, stripe: stripeEnabled },
+    integrations: { openai: openaiEnabled, gmail: googleEnabled, stripe: stripeEnabled },
     demoUpgrade: !stripeEnabled && !IS_PROD,
-    proPriceLabel: process.env.PRO_PRICE_LABEL || '9$ شهريًا',
+    proPrice: process.env.PRO_PRICE || '$9',
     plans: PLANS,
   });
 });
@@ -208,16 +286,16 @@ app.post('/api/auth/register', h(async (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 80);
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
-  if (!name) return fail(res, 400, 'الاسم مطلوب');
-  if (!EMAIL_RE.test(email)) return fail(res, 400, 'البريد الإلكتروني غير صالح');
-  if (password.length < 8) return fail(res, 400, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+  if (!name) return fail(res, 400, msg(req, 'nameRequired'));
+  if (!EMAIL_RE.test(email)) return fail(res, 400, msg(req, 'invalidEmail'));
+  if (password.length < 8) return fail(res, 400, msg(req, 'passwordShort'));
 
   const user = await one(
     `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)
      ON CONFLICT (email) DO NOTHING RETURNING *`,
     [id(), name, email, await bcrypt.hash(password, 10)],
   );
-  if (!user) return fail(res, 409, 'هذا البريد مسجّل مسبقًا');
+  if (!user) return fail(res, 409, msg(req, 'emailTaken'));
   await setSession(res, user);
   res.json({ user: publicUser(user) });
 }));
@@ -226,7 +304,7 @@ app.post('/api/auth/login', h(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const user = await one('SELECT * FROM users WHERE email = $1', [email]);
   if (!user || !(await bcrypt.compare(String(req.body.password || ''), user.password_hash))) {
-    return fail(res, 401, 'البريد أو كلمة المرور غير صحيحة');
+    return fail(res, 401, msg(req, 'badLogin'));
   }
   await setSession(res, user);
   res.json({ user: publicUser(user) });
@@ -244,12 +322,6 @@ app.patch('/api/me', auth, h(async (req, res) => {
   if (typeof req.body.name === 'string' && req.body.name.trim()) {
     user = await one('UPDATE users SET name = $2 WHERE id = $1 RETURNING *', [user.id, req.body.name.trim().slice(0, 80)]);
   }
-  if (typeof req.body.emailConsent === 'boolean') {
-    user = await one('UPDATE users SET email_consent = $2, email_consent_at = now() WHERE id = $1 RETURNING *', [
-      user.id,
-      req.body.emailConsent,
-    ]);
-  }
   res.json({ user: publicUser(user) });
 }));
 
@@ -261,7 +333,13 @@ function cleanTask(body, existing = {}) {
   if ('date' in body) t.date = DATE_RE.test(body.date) ? body.date : '';
   if ('time' in body) t.time = TIME_RE.test(body.time) ? body.time : '';
   if ('priority' in body) t.priority = ['high', 'medium', 'low'].includes(body.priority) ? body.priority : 'medium';
-  if ('done' in body) t.done = Boolean(body.done);
+  if ('status' in body && ['todo', 'doing', 'done'].includes(body.status)) {
+    t.status = body.status;
+    t.done = body.status === 'done';
+  } else if ('done' in body) {
+    t.done = Boolean(body.done);
+    t.status = t.done ? 'done' : t.status === 'done' ? 'todo' : t.status;
+  }
   if ('contactName' in body) t.contactName = String(body.contactName || '').trim().slice(0, 120);
   if ('contactEmail' in body) {
     const e = String(body.contactEmail || '').trim();
@@ -285,9 +363,9 @@ async function findTask(taskId, userId) {
 async function saveTask(t) {
   const row = await one(
     `UPDATE tasks SET title = $2, notes = $3, date = $4, time = $5, priority = $6, done = $7,
-       contact_name = $8, contact_email = $9, draft = $10, updated_at = now()
+       contact_name = $8, contact_email = $9, draft = $10, status = $11, updated_at = now()
      WHERE id = $1 RETURNING *`,
-    [t.id, t.title, t.notes, t.date, t.time, t.priority, t.done, t.contactName, t.contactEmail, t.draft ? JSON.stringify(t.draft) : null],
+    [t.id, t.title, t.notes, t.date, t.time, t.priority, t.done, t.contactName, t.contactEmail, t.draft ? JSON.stringify(t.draft) : null, t.status],
   );
   return taskOut(row);
 }
@@ -302,27 +380,27 @@ app.get('/api/tasks', auth, h(async (req, res) => {
 }));
 
 app.post('/api/tasks', auth, h(async (req, res) => {
-  const t = cleanTask(req.body, { priority: 'medium', done: false, date: '', time: '', notes: '', contactName: '', contactEmail: '' });
-  if (!t.title) return fail(res, 400, 'عنوان المهمة مطلوب');
+  const t = cleanTask(req.body, { priority: 'medium', status: 'todo', done: false, date: '', time: '', notes: '', contactName: '', contactEmail: '' });
+  if (!t.title) return fail(res, 400, msg(req, 'titleRequired'));
   const row = await one(
-    `INSERT INTO tasks (id, user_id, title, notes, date, time, priority, done, contact_name, contact_email, draft)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-    [id(), req.user.id, t.title, t.notes, t.date, t.time, t.priority, t.done, t.contactName, t.contactEmail, t.draft ? JSON.stringify(t.draft) : null],
+    `INSERT INTO tasks (id, user_id, title, notes, date, time, priority, done, contact_name, contact_email, draft, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+    [id(), req.user.id, t.title, t.notes, t.date, t.time, t.priority, t.done, t.contactName, t.contactEmail, t.draft ? JSON.stringify(t.draft) : null, t.status],
   );
   res.json({ task: taskOut(row) });
 }));
 
 app.patch('/api/tasks/:id', auth, h(async (req, res) => {
   const task = await findTask(req.params.id, req.user.id);
-  if (!task) return fail(res, 404, 'المهمة غير موجودة');
+  if (!task) return fail(res, 404, msg(req, 'taskNotFound'));
   const updated = cleanTask(req.body, task);
-  if (!updated.title) return fail(res, 400, 'عنوان المهمة مطلوب');
+  if (!updated.title) return fail(res, 400, msg(req, 'titleRequired'));
   res.json({ task: await saveTask(updated) });
 }));
 
 app.delete('/api/tasks/:id', auth, h(async (req, res) => {
   const rows = await query('DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING id', [req.params.id, req.user.id]);
-  if (!rows.length) return fail(res, 404, 'المهمة غير موجودة');
+  if (!rows.length) return fail(res, 404, msg(req, 'taskNotFound'));
   res.json({ ok: true });
 }));
 
@@ -363,15 +441,15 @@ app.get('/api/calendar.ics', auth, h(async (req, res) => {
 
 app.get('/api/tasks/:id/ics', auth, h(async (req, res) => {
   const task = await findTask(req.params.id, req.user.id);
-  if (!task) return fail(res, 404, 'المهمة غير موجودة');
-  if (!task.date) return fail(res, 400, 'حدّد تاريخًا للمهمة أولًا');
+  if (!task) return fail(res, 404, msg(req, 'taskNotFound'));
+  if (!task.date) return fail(res, 400, msg(req, 'needDate'));
   sendIcs(res, [task], 'mudir-task.ics');
 }));
 
 // ---------- AI ----------
-const AI_ERROR = 'تعذّر الاتصال بخدمة الذكاء الاصطناعي';
+class AIError extends Error {}
 
-// Internal details go to the server log only; users always get the Arabic message.
+// Internal details go to the server log only; users get a translated message.
 async function openaiJSON(system, user) {
   try {
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -388,41 +466,53 @@ async function openaiJSON(system, user) {
     });
     if (!r.ok) {
       console.error('OpenAI error', r.status, await r.text());
-      throw new Error(AI_ERROR);
+      throw new AIError();
     }
     const json = await r.json();
     return JSON.parse(json.choices[0].message.content);
   } catch (err) {
-    if (err.message !== AI_ERROR) console.error('OpenAI request failed:', err.message);
-    throw new Error(AI_ERROR);
+    if (!(err instanceof AIError)) console.error('OpenAI request failed:', err.message);
+    throw new AIError();
   }
 }
 
-const TONES = { formal: 'رسمي ومهني', friendly: 'ودّي ولطيف', brief: 'مختصر ومباشر' };
+const TONES = { formal: 'formal and professional', friendly: 'warm and friendly', brief: 'short and direct' };
+
+function demoDraft({ kind, lang, recipient, task, sender }) {
+  const when = task.date ? `${task.date}${task.time ? ' ' + task.time : ''}` : '';
+  if (lang === 'en') {
+    const greet = recipient ? `Hello ${recipient},` : 'Hello,';
+    return kind === 'email'
+      ? { subject: task.title, body: `${greet}\n\nI'm reaching out regarding: ${task.title}${when ? ` (${when})` : ''}.\n${task.notes ? '\n' + task.notes + '\n' : ''}\nI look forward to hearing from you.\n\nBest regards,\n${sender}` }
+      : { subject: '', body: `${greet} about ${task.title}${when ? ` (${when})` : ''}. ${task.notes || ''}\nThanks — ${sender}` };
+  }
+  const greet = recipient ? `السلام عليكم ${recipient}،` : 'السلام عليكم،';
+  return kind === 'email'
+    ? { subject: task.title, body: `${greet}\n\nأتواصل معكم بخصوص: ${task.title}${when ? ` بتاريخ ${when}` : ''}.\n${task.notes ? '\n' + task.notes + '\n' : ''}\nأرجو التكرّم بالاطلاع والرد في أقرب فرصة.\n\nمع خالص التحية،\n${sender}` }
+    : { subject: '', body: `${greet} بخصوص ${task.title}${when ? ` بتاريخ ${when}` : ''}. ${task.notes || ''}\nشكرًا لك — ${sender}` };
+}
 
 app.post('/api/ai/draft', auth, h(async (req, res) => {
   const task = await findTask(req.body.taskId, req.user.id);
-  if (!task) return fail(res, 404, 'المهمة غير موجودة');
+  if (!task) return fail(res, 404, msg(req, 'taskNotFound'));
   const limit = PLANS[req.user.plan].aiDrafts;
-  if (usage(req.user).aiDrafts >= limit) {
-    return fail(res, 402, `وصلت إلى حد ${limit} صياغات هذا الشهر. اشترك في الباقة الاحترافية للمزيد.`);
-  }
+  if (usage(req.user).aiDrafts >= limit) return fail(res, 402, msg(req, 'draftLimit', { limit }));
 
   const kind = req.body.kind === 'message' ? 'message' : 'email';
   const tone = TONES[req.body.tone] || TONES.formal;
   const recipient = String(req.body.contactName ?? task.contactName ?? '').trim().slice(0, 120);
   const instructions = String(req.body.instructions || '').slice(0, 1000);
-  const lang = req.body.lang === 'en' ? 'English' : 'Arabic (Modern Standard, natural)';
+  const lang = req.body.lang === 'en' ? 'en' : 'ar';
 
   let draft;
   if (openaiEnabled) {
     const system =
       'You are Mudir, an assistant that drafts professional emails and short messages for busy people. ' +
       'Return JSON {"subject": string, "body": string}. For messages (chat/WhatsApp), subject may be empty and body should be short. ' +
-      'Do not invent facts, prices or commitments that are not given; leave clear placeholders like [التاريخ] when needed. ' +
+      'Do not invent facts, prices, attachments or commitments that are not given; leave clear placeholders like [date] when needed. ' +
       'Sign off with the sender name.';
     const prompt = [
-      `Write a ${kind === 'email' ? 'email' : 'short chat message'} in ${lang}.`,
+      `Write a ${kind === 'email' ? 'email' : 'short chat message'} in ${lang === 'en' ? 'English' : 'Arabic (Modern Standard, natural)'}.`,
       `Tone: ${tone}.`,
       `Sender name: ${req.user.name}.`,
       recipient ? `Recipient name: ${recipient}.` : 'Recipient name unknown — use a neutral greeting.',
@@ -436,20 +526,11 @@ app.post('/api/ai/draft', auth, h(async (req, res) => {
     try {
       const out = await openaiJSON(system, prompt);
       draft = { subject: String(out.subject || ''), body: String(out.body || '') };
-    } catch (err) {
-      return fail(res, 502, err.message);
+    } catch {
+      return fail(res, 502, msg(req, 'aiUnavailable'));
     }
   } else {
-    const greet = recipient ? `السلام عليكم ${recipient}،` : 'السلام عليكم،';
-    const when = task.date ? ` بتاريخ ${task.date}${task.time ? ' الساعة ' + task.time : ''}` : '';
-    draft = {
-      subject: kind === 'email' ? task.title : '',
-      body:
-        kind === 'email'
-          ? `${greet}\n\nأتواصل معكم بخصوص: ${task.title}${when}.\n${task.notes ? '\n' + task.notes + '\n' : ''}\nأرجو التكرّم بالاطلاع والرد في أقرب فرصة.\n\nمع خالص التحية،\n${req.user.name}`
-          : `${greet} بخصوص ${task.title}${when}. ${task.notes || ''}\nشكرًا لك — ${req.user.name}`,
-      demo: true,
-    };
+    draft = { ...demoDraft({ kind, lang, recipient, task, sender: req.user.name }), demo: true };
   }
 
   const user = await bumpUsage(req.user.id, 'ai');
@@ -458,9 +539,9 @@ app.post('/api/ai/draft', auth, h(async (req, res) => {
 }));
 
 app.post('/api/ai/plan', auth, h(async (req, res) => {
-  if (!PLANS[req.user.plan].aiPlan) return fail(res, 402, 'ترتيب الأولويات الذكي متاح في الباقة الاحترافية.');
+  if (!PLANS[req.user.plan].aiPlan) return fail(res, 402, msg(req, 'proOnly'));
   const open = (await query('SELECT * FROM tasks WHERE user_id = $1 AND NOT done ORDER BY created_at LIMIT 60', [req.user.id])).map(taskOut);
-  if (!open.length) return res.json({ plan: [], summary: 'لا توجد مهام مفتوحة. أحسنت!' });
+  if (!open.length) return res.json({ plan: [], summary: msg(req, 'noOpenTasks') });
   const today = new Date().toISOString().slice(0, 10);
 
   if (!openaiEnabled) {
@@ -469,75 +550,223 @@ app.post('/api/ai/plan', auth, h(async (req, res) => {
       (a, b) => rank[a.priority] - rank[b.priority] || (a.date || '9999').localeCompare(b.date || '9999'),
     );
     return res.json({
-      summary: 'ترتيب تلقائي حسب الأولوية والتاريخ (الوضع التجريبي — أضف مفتاح OpenAI لتحليل أذكى).',
+      summary: msg(req, 'autoPlan'),
       plan: sorted.map((t) => ({
         id: t.id,
-        reason: t.date && t.date < today ? 'متأخرة عن موعدها' : t.priority === 'high' ? 'أولوية عالية' : 'حسب الموعد',
+        reason: msg(req, t.date && t.date < today ? 'reasonOverdue' : t.priority === 'high' ? 'reasonHigh' : 'reasonDate'),
       })),
     });
   }
 
+  const language = langOf(req) === 'en' ? 'English' : 'Arabic';
   try {
     const out = await openaiJSON(
-      'You are a productivity coach. Order the user\'s open tasks by what deserves attention first, considering due dates, overdue items, priority, and dependencies implied by the text. ' +
-        'Return JSON {"summary": string (Arabic, 1-2 sentences of advice for today), "plan": [{"id": string, "reason": string (Arabic, under 12 words)}]}. Include every task id exactly once.',
+      "You are a productivity coach. Order the user's open tasks by what deserves attention first, considering due dates, overdue items, priority, and dependencies implied by the text. " +
+        `Return JSON {"summary": string (${language}, 1-2 sentences of advice for today), "plan": [{"id": string, "reason": string (${language}, under 12 words)}]}. Include every task id exactly once.`,
       `Today is ${today}.\nTasks:\n` +
         JSON.stringify(open.map((t) => ({ id: t.id, title: t.title, notes: t.notes, date: t.date, time: t.time, priority: t.priority }))),
     );
     const ids = new Set(open.map((t) => t.id));
     const plan = (Array.isArray(out.plan) ? out.plan : []).filter((p) => ids.has(p.id));
     res.json({ summary: String(out.summary || ''), plan });
-  } catch (err) {
-    fail(res, 502, err.message);
+  } catch {
+    fail(res, 502, msg(req, 'aiUnavailable'));
   }
 }));
 
-// ---------- Email ----------
+// ---------- Gmail (send from the signed-in user's own account) ----------
+// Refresh tokens are stored encrypted with a key derived from the session secret.
+async function tokenKey() {
+  return crypto.createHash('sha256').update(`${await getJwtSecret()}:google-refresh-token`).digest();
+}
+
+async function encrypt(text) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', await tokenKey(), iv);
+  const data = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  return [iv, cipher.getAuthTag(), data].map((b) => b.toString('base64')).join('.');
+}
+
+async function decrypt(blob) {
+  const [iv, tag, data] = blob.split('.').map((s) => Buffer.from(s, 'base64'));
+  const decipher = crypto.createDecipheriv('aes-256-gcm', await tokenKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
+app.get('/api/google/connect', auth, h(async (req, res) => {
+  if (!googleEnabled) return fail(res, 400, msg(req, 'gmailOff'));
+  const state = jwt.sign({ sub: req.user.id, purpose: 'google' }, await getJwtSecret(), { expiresIn: '10m' });
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT,
+    response_type: 'code',
+    scope: `openid email ${GMAIL_SEND_SCOPE}`,
+    access_type: 'offline',
+    prompt: 'consent',
+    state,
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+}));
+
+app.get('/api/google/callback', h(async (req, res) => {
+  const back = (result) => res.redirect(`/?gmail=${result}#account`);
+  if (req.query.error) return back('denied');
+
+  const user = await sessionUser(req);
+  let state;
+  try {
+    state = jwt.verify(String(req.query.state || ''), await getJwtSecret());
+  } catch {
+    return back('error');
+  }
+  if (!user || state.purpose !== 'google' || state.sub !== user.id) return back('error');
+
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code: String(req.query.code || ''),
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: GOOGLE_REDIRECT,
+      grant_type: 'authorization_code',
+    }),
+  });
+  const tokens = await r.json();
+  if (!r.ok || !tokens.refresh_token) {
+    console.error('Google token exchange failed', r.status, tokens.error, tokens.error_description);
+    return back('error');
+  }
+  // Google lets people untick individual permissions on the consent screen.
+  if (!String(tokens.scope || '').split(' ').includes(GMAIL_SEND_SCOPE)) return back('noscope');
+
+  // The id_token comes straight from Google over TLS, so its payload can be read without re-verifying.
+  const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString('utf8'));
+  await query('UPDATE users SET google_email = $2, google_refresh_token = $3 WHERE id = $1', [
+    user.id,
+    claims.email,
+    await encrypt(tokens.refresh_token),
+  ]);
+  back('connected');
+}));
+
+app.post('/api/google/disconnect', auth, h(async (req, res) => {
+  if (req.user.google_refresh_token) {
+    try {
+      const token = await decrypt(req.user.google_refresh_token);
+      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, { method: 'POST' });
+    } catch (err) {
+      console.error('Google revoke failed:', err.message);
+    }
+  }
+  const user = await one('UPDATE users SET google_email = NULL, google_refresh_token = NULL WHERE id = $1 RETURNING *', [req.user.id]);
+  res.json({ user: publicUser(user) });
+}));
+
+class GmailAuthError extends Error {}
+
+async function gmailAccessToken(user) {
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      refresh_token: await decrypt(user.google_refresh_token),
+      grant_type: 'refresh_token',
+    }),
+  });
+  const json = await r.json();
+  if (!r.ok) {
+    console.error('Google refresh failed', r.status, json.error);
+    if (json.error === 'invalid_grant') throw new GmailAuthError();
+    throw new Error('refresh failed');
+  }
+  return json.access_token;
+}
+
+function b64(s) {
+  return Buffer.from(s, 'utf8').toString('base64');
+}
+
+// RFC 2047 encoded-word for non-ASCII (and any CR/LF, which blocks header injection).
+function encodeHeader(s) {
+  return /^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${b64(s)}?=`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildMime({ fromName, fromEmail, to, subject, text }) {
+  const dir = /[\u0600-\u06FF]/.test(text) ? 'rtl' : 'ltr';
+  const html = `<div dir="${dir}" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.8;white-space:pre-wrap">${escapeHtml(text)}</div>`;
+  const boundary = `mudir_${crypto.randomBytes(8).toString('hex')}`;
+  const wrap = (s) => s.match(/.{1,76}/g).join('\r\n');
+  return [
+    `From: ${encodeHeader(fromName)} <${fromEmail}>`,
+    `To: ${to}`,
+    `Subject: ${encodeHeader(subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrap(b64(text)),
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrap(b64(html)),
+    `--${boundary}--`,
+    '',
+  ].join('\r\n');
+}
+
 app.post('/api/email/send', auth, h(async (req, res) => {
   const user = req.user;
-  if (!user.email_consent) {
-    return fail(res, 403, 'يجب منح الإذن بإرسال البريد نيابةً عنك من صفحة الحساب أولًا.');
-  }
-  if (req.body.confirm !== true) return fail(res, 400, 'يجب تأكيد الإرسال');
+  if (!googleEnabled) return fail(res, 400, msg(req, 'gmailOff'));
+  if (!user.google_refresh_token) return fail(res, 403, msg(req, 'gmailNotConnected'));
+  if (req.body.confirm !== true) return fail(res, 400, msg(req, 'confirmRequired'));
 
   const to = String(req.body.to || '').trim();
   const subject = String(req.body.subject || '').trim().slice(0, 300);
   const body = String(req.body.body || '').slice(0, 10000);
-  if (!EMAIL_RE.test(to)) return fail(res, 400, 'بريد المستلم غير صالح');
-  if (!subject || !body.trim()) return fail(res, 400, 'العنوان والنص مطلوبان');
+  if (!EMAIL_RE.test(to)) return fail(res, 400, msg(req, 'recipientInvalid'));
+  if (!subject || !body.trim()) return fail(res, 400, msg(req, 'subjectBodyRequired'));
 
   const task = req.body.taskId ? await findTask(req.body.taskId, user.id) : null;
   const limit = PLANS[user.plan].emails;
-  if (usage(user).emails >= limit) return fail(res, 402, `وصلت إلى حد ${limit} رسالة بريد هذا الشهر.`);
+  if (usage(user).emails >= limit) return fail(res, 402, msg(req, 'emailLimit', { limit }));
 
-  let status;
-  if (emailEnabled) {
-    try {
-      const fromAddr = process.env.MAIL_FROM.match(/<(.+)>/)?.[1] || process.env.MAIL_FROM;
-      await mailer.sendMail({
-        from: { name: `${user.name} عبر مُدير`, address: fromAddr },
-        replyTo: { name: user.name, address: user.email },
-        to,
-        subject,
-        text: body,
-        html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.8;white-space:pre-wrap">${body
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')}</div>`,
-      });
-      status = 'sent';
-    } catch (err) {
-      console.error('Email error:', err.message);
-      return fail(res, 502, 'تعذّر إرسال البريد. تحقّق من إعدادات SMTP.');
+  try {
+    const accessToken = await gmailAccessToken(user);
+    const raw = Buffer.from(buildMime({ fromName: user.name, fromEmail: user.google_email, to, subject, text: body })).toString('base64url');
+    const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw }),
+    });
+    if (!r.ok) {
+      console.error('Gmail send failed', r.status, await r.text());
+      if (r.status === 401 || r.status === 403) throw new GmailAuthError();
+      throw new Error('send failed');
     }
-  } else {
-    console.log(`[demo email] to=${to} subject=${subject}\n${body}\n`);
-    status = 'demo';
+  } catch (err) {
+    if (err instanceof GmailAuthError) {
+      await query('UPDATE users SET google_refresh_token = NULL WHERE id = $1', [user.id]);
+      return fail(res, 401, msg(req, 'gmailReconnect'));
+    }
+    console.error('Email error:', err.message);
+    return fail(res, 502, msg(req, 'sendFailed'));
   }
 
   const row = await one(
-    `INSERT INTO emails (id, user_id, task_id, to_addr, subject, body, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [id(), user.id, task?.id || null, to, subject, body, status],
+    `INSERT INTO emails (id, user_id, task_id, to_addr, subject, body, status) VALUES ($1, $2, $3, $4, $5, $6, 'sent') RETURNING *`,
+    [id(), user.id, task?.id || null, to, subject, body],
   );
   if (task) await query('UPDATE tasks SET last_email_at = $2 WHERE id = $1', [task.id, row.sent_at]);
   const updated = await bumpUsage(user.id, 'email');
@@ -551,14 +780,14 @@ app.get('/api/email/log', auth, h(async (req, res) => {
 
 // ---------- Billing ----------
 app.post('/api/billing/checkout', auth, h(async (req, res) => {
-  if (!stripeEnabled) return fail(res, 400, 'الدفع غير مفعّل على الخادم بعد.');
+  if (!stripeEnabled) return fail(res, 400, msg(req, 'billingOff'));
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       client_reference_id: req.user.id,
       ...(req.user.stripe_customer_id ? { customer: req.user.stripe_customer_id } : { customer_email: req.user.email }),
-      locale: 'auto',
+      locale: langOf(req),
       allow_promotion_codes: true,
       success_url: `${APP_URL}/?billing=success#account`,
       cancel_url: `${APP_URL}/?billing=cancel#account`,
@@ -566,27 +795,28 @@ app.post('/api/billing/checkout', auth, h(async (req, res) => {
     res.json({ url: session.url });
   } catch (err) {
     console.error('Stripe checkout error:', err.message);
-    fail(res, 502, 'تعذّر بدء عملية الدفع');
+    fail(res, 502, msg(req, 'checkoutFailed'));
   }
 }));
 
 app.post('/api/billing/portal', auth, h(async (req, res) => {
-  if (!stripe || !req.user.stripe_customer_id) return fail(res, 400, 'لا يوجد اشتراك لإدارته');
+  if (!stripe || !req.user.stripe_customer_id) return fail(res, 400, msg(req, 'noSubscription'));
   try {
     const session = await stripe.billingPortal.sessions.create({
       customer: req.user.stripe_customer_id,
       return_url: `${APP_URL}/#account`,
+      locale: langOf(req),
     });
     res.json({ url: session.url });
   } catch (err) {
     console.error('Stripe portal error:', err.message);
-    fail(res, 502, 'تعذّر فتح بوابة الاشتراك');
+    fail(res, 502, msg(req, 'portalFailed'));
   }
 }));
 
 // Local testing only: lets you try Pro features before Stripe keys are set.
 app.post('/api/billing/demo-upgrade', auth, h(async (req, res) => {
-  if (stripeEnabled || IS_PROD) return fail(res, 404, 'غير متاح');
+  if (stripeEnabled || IS_PROD) return fail(res, 404, msg(req, 'notAvailable'));
   const user = await one('UPDATE users SET plan = $2 WHERE id = $1 RETURNING *', [
     req.user.id,
     req.user.plan === 'pro' ? 'free' : 'pro',
@@ -594,20 +824,20 @@ app.post('/api/billing/demo-upgrade', auth, h(async (req, res) => {
   res.json({ user: publicUser(user) });
 }));
 
-app.use('/api', (req, res) => fail(res, 404, 'غير موجود'));
+app.use('/api', (req, res) => fail(res, 404, msg(req, 'notFound')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
-  fail(res, 500, 'حدث خطأ في الخادم، حاول مرة أخرى');
+  fail(res, 500, msg(req, 'serverError'));
 });
 
 module.exports = app;
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`مُدير يعمل على ${APP_URL}`);
-    console.log(`  OpenAI: ${openaiEnabled ? 'مفعّل' : 'تجريبي'} | Email: ${emailEnabled ? 'مفعّل' : 'تجريبي'} | Stripe: ${stripeEnabled ? 'مفعّل' : 'تجريبي'}`);
+    console.log(`Mudir running at ${APP_URL}`);
+    console.log(`  OpenAI: ${openaiEnabled ? 'on' : 'demo'} | Gmail: ${googleEnabled ? 'on' : 'off'} | Stripe: ${stripeEnabled ? 'on' : 'demo'}`);
   });
 }

@@ -1,8 +1,10 @@
 # مُدير | Mudir
 
-موقع عربي (من اليمين لليسار) مصمَّم للجوال: قائمة مهام بتواريخ، تقويم، صياغة رسائل بالذكاء الاصطناعي (OpenAI)، إرسال بريد بعد إذن المستخدم، واشتراك مدفوع (Stripe).
+مساحة عمل بالعربية والإنجليزية، مستوحاة من Notion، تعمل على الجوال والحاسوب: مهام بعرض قائمة أو لوحة، تقويم، صياغة رسائل بالذكاء الاصطناعي (OpenAI)، إرسال البريد من حساب Gmail الخاص بكل مستخدم بعد تأكيده، واشتراك مدفوع (Stripe).
 
-## التشغيل
+An Arabic/English, Notion-inspired workspace for phone and laptop: tasks (list or board), calendar, AI-drafted messages, sending from each user's own Gmail after they confirm, and Stripe subscriptions.
+
+## التشغيل محليًا
 
 ```bash
 npm install
@@ -10,36 +12,39 @@ cp .env.example .env   # ثم املأ المفاتيح
 npm start              # http://localhost:3000
 ```
 
-أي تكامل بلا مفاتيح يعمل في **الوضع التجريبي**:
+أي تكامل بلا مفاتيح يعمل بدونه:
 - OpenAI ← صياغة جاهزة وترتيب حسب الأولوية والتاريخ
-- البريد ← تُسجَّل الرسالة في سجل الخادم ولا تُرسل
-- Stripe ← زر "تجربة الاحترافي" للاختبار (يختفي عند NODE_ENV=production)
+- Gmail ← يبقى خيار «افتح في Gmail / Outlook / تطبيق البريد» متاحًا للجميع
+- Stripe ← زر «تجربة الاحترافي» للاختبار (يختفي على الموقع المنشور)
+
+## المزايا
+- **عرض قائمة ولوحة:** للتنفيذ / قيد التنفيذ / مكتملة، مع السحب والإفلات على الحاسوب.
+- **صفحة لكل مهمة:** الحالة والتاريخ والأولوية والمستلم والملاحظات تُحفظ تلقائيًا.
+- **إضافة سريعة:** اكتب في سطر «مهمة جديدة» ثم Enter.
+- **بحث:** `Ctrl+K` / `⌘K`.
+- **لغتان:** زر تبديل العربية/English، مع اتجاه الصفحة وتنسيق التواريخ ورسائل الخادم.
 
 ## ربط التكاملات
 
 ### 1. OpenAI
-ضع `OPENAI_API_KEY` من platform.openai.com. يمكن تغيير النموذج عبر `OPENAI_MODEL`.
+ضع `OPENAI_API_KEY` من platform.openai.com (يحتاج رصيدًا مدفوعًا مسبقًا). النموذج الافتراضي `gpt-6-luna`، ويمكن تغييره عبر `OPENAI_MODEL`.
 
-### 2. البريد (SMTP)
-يعمل مع أي مزوّد. أمثلة:
-| المزوّد | SMTP_HOST | ملاحظات |
-|---|---|---|
-| Gmail | smtp.gmail.com | فعّل التحقق بخطوتين وأنشئ "App password" |
-| Outlook | smtp.office365.com | |
-| Resend | smtp.resend.com | SMTP_USER=resend، SMTP_PASS=مفتاح API |
-| SendGrid | smtp.sendgrid.net | SMTP_USER=apikey |
+### 2. Gmail (الإرسال من بريد كل مستخدم)
+1. في [Google Cloud Console](https://console.cloud.google.com/) أنشئ مشروعًا وفعّل **Gmail API**.
+2. **OAuth consent screen:** نوع External، وأضف النطاق `https://www.googleapis.com/auth/gmail.send`.
+   في وضع Testing أضف بريد كل مختبِر ضمن **Test users** (حتى 100 مستخدم).
+3. **Credentials → Create OAuth client ID → Web application**، وأضف في
+   **Authorized redirect URIs**: `https://نطاقك/api/google/callback`
+4. ضع `GOOGLE_CLIENT_ID` و`GOOGLE_CLIENT_SECRET` في متغيرات البيئة.
 
-يُرسَل البريد من `MAIL_FROM` باسم "اسم المستخدم عبر مُدير"، والردود (Reply-To) تذهب لبريد المستخدم.
-للإنتاج استخدم نطاقك الخاص مع إعداد SPF/DKIM لتجنّب مجلد الرسائل غير المرغوبة.
+للإطلاق العام يجب أن تراجع Google التطبيق (نطاق `gmail.send` حسّاس)، وتطلب نطاقًا خاصًا وصفحة سياسة خصوصية.
 
 ### 3. Stripe (الاشتراكات)
 1. أنشئ منتجًا بسعر شهري متكرر في لوحة Stripe، وانسخ `price_...` إلى `STRIPE_PRICE_ID`.
 2. ضع `STRIPE_SECRET_KEY` (ابدأ بمفتاح `sk_test_` للتجربة).
-3. الـ Webhook:
-   - محليًا: `stripe listen --forward-to localhost:3000/api/billing/webhook` وانسخ `whsec_...`
-   - في الإنتاج: أضف نقطة `https://موقعك/api/billing/webhook` مع الأحداث:
-     `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
-4. فعّل Customer Portal من إعدادات Stripe ليتمكن المستخدم من الإلغاء وإدارة الفواتير.
+3. الـ Webhook: `https://نطاقك/api/billing/webhook` مع الأحداث
+   `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+4. فعّل Customer Portal ليتمكن المستخدم من الإلغاء وإدارة الفواتير.
 
 ## الباقات
 | | مجاني | احترافي |
@@ -52,29 +57,24 @@ npm start              # http://localhost:3000
 عدّل الحدود في `PLANS` داخل `server.js`.
 
 ## حماية الإرسال
-- لا يُرسل أي بريد إلا إذا منح المستخدم الإذن (يُحفظ مع وقت الموافقة)، **و** أكّد كل رسالة في شاشة المعاينة.
-- الخادم يرفض الإرسال (403) دون الإذن حتى لو استُدعيت الواجهة البرمجية مباشرة.
+- الإرسال المباشر يتطلب أن يربط المستخدم Gmail بنفسه عبر شاشة موافقة Google (إذن الإرسال فقط، دون قراءة البريد).
+- كل رسالة تمر بشاشة تأكيد تعرض المرسِل والمستلم والنص قبل الإرسال.
+- رمز Google يُحفظ مشفّرًا (AES-256-GCM)، ويمكن فصل Gmail في أي وقت من صفحة الحساب.
 
 ## قاعدة البيانات
-- **على Vercel:** PostgreSQL من Neon (مجاني) — يضبط Vercel المتغير `DATABASE_URL` تلقائيًا عند ربط قاعدة البيانات.
-- **محليًا:** إن لم يوجد `DATABASE_URL` يعمل Postgres مدمج (PGlite) ويحفظ البيانات في `data/pglite`.
-- الجداول تُنشأ تلقائيًا عند أول تشغيل.
+- **على Vercel:** PostgreSQL من Neon (مجاني) — يضبط Vercel `DATABASE_URL` تلقائيًا عند الربط.
+- **محليًا:** إن لم يوجد `DATABASE_URL` يعمل Postgres مدمج (PGlite) في `data/pglite`.
+- الجداول تُنشأ وتُحدَّث تلقائيًا عند التشغيل.
 
 ## النشر على Vercel
-1. `npm i -g vercel` ثم `vercel login`.
-2. `vercel` داخل المجلد لإنشاء المشروع.
-3. في لوحة Vercel: **Storage** ← **Create Database** ← **Neon** ← اربطها بالمشروع.
-4. **Settings → Environment Variables**: أضف `JWT_SECRET` (نص عشوائي طويل) ومفاتيح OpenAI والبريد وStripe.
-5. `vercel --prod` للنشر. اربط المستودع من **Settings → Git** ليُعاد النشر تلقائيًا مع كل `git push`.
-6. Stripe Webhook: `https://نطاقك/api/billing/webhook`.
-
-`APP_URL` يُؤخذ تلقائيًا من Vercel؛ اضبطه فقط عند استخدام نطاق خاص.
+المستودع مربوط بـ Vercel، فكل `git push` إلى `main` يُنشر تلقائيًا.
+المتغيرات في **Settings → Environment Variables**. `APP_URL` يُؤخذ تلقائيًا من Vercel؛ اضبطه فقط عند استخدام نطاق خاص.
 
 ## البنية
 ```
-server.js          الخادم: الحسابات، المهام، الذكاء الاصطناعي، البريد، الدفع، ملفات التقويم
-lib/db.js          قاعدة بيانات بسيطة بملف JSON
-public/index.html  الواجهة (RTL)
-public/styles.css  التصميم (للجوال أولًا + الوضع الليلي)
-public/app.js      منطق الواجهة
+server.js          الخادم: الحسابات، المهام، الذكاء الاصطناعي، Gmail، الدفع، ملفات التقويم، الترجمة
+lib/db.js          الاتصال بـ Postgres وإنشاء الجداول
+public/index.html  هيكل الواجهة والأيقونات
+public/styles.css  التصميم (جوال وحاسوب، عربي/إنجليزي، الوضع الليلي)
+public/app.js      منطق الواجهة والترجمات
 ```

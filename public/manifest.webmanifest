@@ -1,11 +1,11 @@
 {
-  "name": "مُدير",
-  "short_name": "مُدير",
+  "name": "مُدير · Mudir",
+  "short_name": "Mudir",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f3ec",
-  "theme_color": "#0f5c4d",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }
