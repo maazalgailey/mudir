@@ -882,6 +882,8 @@ async function startRecording() {
     return;
   }
   s.stream = stream;
+  // Phones cut the mic when you switch apps or lock the screen: finish with what was heard.
+  stream.getAudioTracks().forEach((tr) => (tr.onended = () => voice === s && finishVoice()));
   const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus'].find((m) => MediaRecorder.isTypeSupported?.(m)) || '';
   try {
     s.recorder = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
@@ -890,9 +892,12 @@ async function startRecording() {
   }
   s.recorder.ondataavailable = (e) => e.data?.size && s.chunks.push(e.data);
 
+  // Start recording first; the level meter is an extra and must never hold it up.
+  s.recorder.start(250);
+  s.startedAt = performance.now();
   if (ctx) {
     try {
-      await ctx.resume();
+      ctx.resume().catch(() => {});
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
       ctx.createMediaStreamSource(stream).connect(analyser);
@@ -900,11 +905,11 @@ async function startRecording() {
       s.buf = new Uint8Array(analyser.fftSize);
     } catch { /* level meter and auto-stop are extras; recording still works */ }
   }
-  s.recorder.start(250);
-  s.startedAt = performance.now();
 
+  // A plain interval rather than requestAnimationFrame, which pauses whenever the page isn't painting
+  // (dimmed phone screen, background tab) and would leave the mic stuck on.
   const tick = () => {
-    if (voice !== s) return;
+    if (voice !== s) return clearInterval(s.timer);
     const now = performance.now();
     const elapsed = now - s.startedAt;
     $('#as-timer').textContent = fmtClock(elapsed);
@@ -927,8 +932,8 @@ async function startRecording() {
       if (s.levelWorks && !s.heard && elapsed > 8000) return finishVoice();
     }
     if (elapsed > 60000) return finishVoice();
-    s.raf = requestAnimationFrame(tick);
   };
+  s.timer = setInterval(tick, 100);
   tick();
 }
 
@@ -951,7 +956,7 @@ function startBrowserRecognition() {
   };
   rec.onend = () => {
     if (voice === s) voice = null;
-    cancelAnimationFrame(s.raf);
+    clearInterval(s.timer);
     setVoiceUI('idle');
     if (s.cancel) return;
     if (s.text) {
@@ -961,12 +966,10 @@ function startBrowserRecognition() {
       toast(t('noSpeechHeard'));
     }
   };
-  const tick = () => {
-    if (voice !== s) return;
+  s.timer = setInterval(() => {
+    if (voice !== s) return clearInterval(s.timer);
     $('#as-timer').textContent = fmtClock(performance.now() - s.startedAt);
-    s.raf = requestAnimationFrame(tick);
-  };
-  tick();
+  }, 250);
   try {
     rec.start();
   } catch {
@@ -985,7 +988,7 @@ function finishVoice({ cancel = false } = {}) {
   const s = voice;
   if (!s) return;
   voice = null;
-  cancelAnimationFrame(s.raf);
+  clearInterval(s.timer);
   if (s.kind === 'browser') {
     s.cancel = cancel;
     try { s.rec.stop(); } catch { /* already stopped */ }
@@ -1088,6 +1091,9 @@ $('#as-form').addEventListener('submit', (e) => {
 });
 
 $('#as-mic').addEventListener('click', startVoice);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && voice) finishVoice();
+});
 
 async function runCommand(text) {
   $('#as-input').value = '';
