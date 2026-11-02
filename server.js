@@ -278,6 +278,8 @@ app.get('/api/config', (req, res) => {
     demoUpgrade: !stripeEnabled && !IS_PROD,
     proPrice: process.env.PRO_PRICE || '$9',
     plans: PLANS,
+    // Which commit is live, so a deploy can be confirmed from outside.
+    version: (process.env.VERCEL_GIT_COMMIT_SHA || 'local').slice(0, 7),
   });
 });
 
