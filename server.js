@@ -369,26 +369,33 @@ app.get('/api/tasks/:id/ics', auth, h(async (req, res) => {
 }));
 
 // ---------- AI ----------
+const AI_ERROR = 'تعذّر الاتصال بخدمة الذكاء الاصطناعي';
+
+// Internal details go to the server log only; users always get the Arabic message.
 async function openaiJSON(system, user) {
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
-  });
-  if (!r.ok) {
-    const text = await r.text();
-    console.error('OpenAI error', r.status, text);
-    throw new Error('تعذّر الاتصال بخدمة الذكاء الاصطناعي');
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY.trim()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      }),
+    });
+    if (!r.ok) {
+      console.error('OpenAI error', r.status, await r.text());
+      throw new Error(AI_ERROR);
+    }
+    const json = await r.json();
+    return JSON.parse(json.choices[0].message.content);
+  } catch (err) {
+    if (err.message !== AI_ERROR) console.error('OpenAI request failed:', err.message);
+    throw new Error(AI_ERROR);
   }
-  const json = await r.json();
-  return JSON.parse(json.choices[0].message.content);
 }
 
 const TONES = { formal: 'رسمي ومهني', friendly: 'ودّي ولطيف', brief: 'مختصر ومباشر' };
