@@ -1,5 +1,4 @@
 require('dotenv').config();
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
@@ -18,20 +17,17 @@ const APP_URL = (
   `http://localhost:${PORT}`
 ).replace(/\/$/, '');
 
-if (IS_PROD && !process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is required in production.');
-}
-const JWT_SECRET = process.env.JWT_SECRET || devSecret();
-
-// Persistent local secret so dev sessions survive restarts when JWT_SECRET is unset.
-function devSecret() {
-  const dir = path.join(__dirname, 'data');
-  const file = path.join(dir, '.dev-secret');
-  if (fs.existsSync(file)) return fs.readFileSync(file, 'utf8');
-  fs.mkdirSync(dir, { recursive: true });
-  const secret = crypto.randomBytes(48).toString('hex');
-  fs.writeFileSync(file, secret);
-  return secret;
+// Session signing secret: JWT_SECRET if set, otherwise generated once and kept in the database,
+// so every server instance shares it without anyone handling the value.
+let jwtSecret = process.env.JWT_SECRET || null;
+async function getJwtSecret() {
+  if (jwtSecret) return jwtSecret;
+  await query('INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING', [
+    'jwt_secret',
+    crypto.randomBytes(48).toString('hex'),
+  ]);
+  jwtSecret = (await one('SELECT value FROM app_settings WHERE key = $1', ['jwt_secret'])).value;
+  return jwtSecret;
 }
 
 // ---------- Integrations ----------
@@ -170,8 +166,8 @@ function fail(res, status, message) {
   return res.status(status).json({ error: message });
 }
 
-function setSession(res, user) {
-  const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '30d' });
+async function setSession(res, user) {
+  const token = jwt.sign({ sub: user.id }, await getJwtSecret(), { expiresIn: '30d' });
   res.cookie('session', token, {
     httpOnly: true,
     sameSite: 'lax',
@@ -183,7 +179,7 @@ function setSession(res, user) {
 const auth = h(async (req, res, next) => {
   let sub;
   try {
-    ({ sub } = jwt.verify(req.cookies.session || '', JWT_SECRET));
+    ({ sub } = jwt.verify(req.cookies.session || '', await getJwtSecret()));
   } catch {
     return fail(res, 401, 'يرجى تسجيل الدخول');
   }
@@ -221,7 +217,7 @@ app.post('/api/auth/register', h(async (req, res) => {
     [id(), name, email, await bcrypt.hash(password, 10)],
   );
   if (!user) return fail(res, 409, 'هذا البريد مسجّل مسبقًا');
-  setSession(res, user);
+  await setSession(res, user);
   res.json({ user: publicUser(user) });
 }));
 
@@ -231,7 +227,7 @@ app.post('/api/auth/login', h(async (req, res) => {
   if (!user || !(await bcrypt.compare(String(req.body.password || ''), user.password_hash))) {
     return fail(res, 401, 'البريد أو كلمة المرور غير صحيحة');
   }
-  setSession(res, user);
+  await setSession(res, user);
   res.json({ user: publicUser(user) });
 }));
 
