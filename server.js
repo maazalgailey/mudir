@@ -660,6 +660,37 @@ app.post('/api/ai/plan', auth, h(async (req, res) => {
 }));
 
 // ---------- Speech to text ----------
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+  }
+  return d[a.length][b.length];
+}
+
+// Snap near-miss spellings of saved names to the saved spelling ("Algaili" → "Algailey").
+// Only words of 4+ letters, same first letter, and at most 1 edit (2 for long names) are changed.
+function snapNames(text, names) {
+  const vocab = [...new Set(names.flatMap((n) => String(n).split(/\s+/)).filter((w) => w.length >= 4))];
+  if (!vocab.length) return text;
+  return text.replace(/[\p{L}\p{M}'-]{4,}/gu, (word) => {
+    const w = normalize(word);
+    let best = null;
+    for (const v of vocab) {
+      const nv = normalize(v);
+      if (nv === w) return v;
+      if (nv[0] !== w[0] || Math.abs(nv.length - w.length) > 2) continue;
+      const dist = editDistance(w, nv);
+      const allowed = nv.length >= 7 ? 2 : 1;
+      if (dist <= allowed && (!best || dist < best.dist)) best = { v, dist };
+    }
+    return best ? best.v : word;
+  });
+}
+
 // The browser records audio (webm on Chrome/Android, mp4 on iPhone) and posts the raw bytes here.
 const AUDIO_EXT = { 'audio/webm': 'webm', 'audio/mp4': 'mp4', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/aac': 'm4a', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/mpeg': 'mp3' };
 
@@ -699,8 +730,10 @@ app.post('/api/transcribe', auth, express.raw({ type: () => true, limit: '4mb' }
       return fail(res, 502, msg(req, 'transcribeFailed'));
     }
     if (r.ok) {
-      const text = String((await r.json()).text || '').trim();
-      if (!text) return fail(res, 422, msg(req, 'noSpeechHeard'));
+      const raw = String((await r.json()).text || '').trim();
+      if (!raw) return fail(res, 422, msg(req, 'noSpeechHeard'));
+      // People's names only: group names are ordinary words ("employees") the assistant already matches loosely.
+      const text = snapNames(raw, contacts.map((c) => c.name));
       return res.json({ text, model });
     }
     const detail = await r.text();
