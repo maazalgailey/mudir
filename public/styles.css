@@ -723,6 +723,32 @@ main { padding: 0 16px; }
 .mic-btn.listening { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.5); } 50% { box-shadow: 0 0 0 12px rgba(124, 92, 255, 0); } }
 
+/* Voice states: the ring grows with your voice level (--level 0..1) */
+.mic-btn { position: relative; --level: 0; transition: transform 0.1s; touch-action: manipulation; }
+.mic-btn .spinner { display: none; width: 22px; height: 22px; border-width: 2.5px; }
+.mic-btn.recording { background: #e5484d; box-shadow: 0 0 0 calc(4px + var(--level) * 14px) rgba(229, 72, 77, 0.22); }
+.mic-btn.recording .ic { animation: none; }
+.mic-btn.processing .ic { display: none; }
+.mic-btn.processing .spinner { display: inline-block; }
+.mic-btn:disabled { opacity: 0.85; }
+.as-status { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--ink-strong); padding: 2px 4px; }
+.as-timer { margin-inline-start: auto; color: var(--muted); font-variant-numeric: tabular-nums; direction: ltr; }
+.wave { display: inline-flex; align-items: center; gap: 3px; height: 20px; }
+.wave i { width: 4px; height: calc(4px + var(--level, 0) * 16px); border-radius: 2px; background: var(--violet); transition: height 0.08s; }
+.wave i:nth-child(2), .wave i:nth-child(4) { height: calc(4px + var(--level, 0) * 11px); }
+.wave i:nth-child(1), .wave i:nth-child(5) { height: calc(4px + var(--level, 0) * 6px); }
+.as-status.processing .wave i { animation: bounce 0.9s ease-in-out infinite; height: 10px; }
+.as-status.processing .wave i:nth-child(2) { animation-delay: 0.1s; }
+.as-status.processing .wave i:nth-child(3) { animation-delay: 0.2s; }
+.as-status.processing .wave i:nth-child(4) { animation-delay: 0.3s; }
+.as-status.processing .wave i:nth-child(5) { animation-delay: 0.4s; }
+@keyframes bounce { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1.6); } }
+.speech-lang {
+  flex: none; min-width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--muted); font-weight: 600; font-size: 0.85rem; padding: 0 8px;
+}
+.speech-lang:hover { background: var(--hover); color: var(--ink); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

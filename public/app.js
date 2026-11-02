@@ -45,8 +45,16 @@ const I18N = {
     more: '+{n} أخرى',
     // Assistant
     thinking: 'لحظة…',
-    listening: 'أستمع…',
+    listening: 'أستمع… توقّف عن الكلام عندما تنتهي',
     noSpeech: 'المتصفح لا يدعم الإدخال الصوتي هنا. اكتب طلبك بدلًا من ذلك.',
+    stopSpeaking: 'إنهاء التحدث',
+    transcribing: 'أكتب ما قلته…',
+    noSpeechHeard: 'لم أسمع شيئًا، حاول مرة أخرى',
+    transcribeFailed: 'تعذّر تحويل الصوت إلى نص',
+    micDenied: 'اسمح لمُدير باستخدام الميكروفون من إعدادات المتصفح ثم حاول مرة أخرى',
+    micMissing: 'لم يتم العثور على ميكروفون',
+    speechLang: 'لغة التحدث',
+    speechLangSet: 'لغة التحدث: {lang}',
     ex1: 'أرسل لموظفيني دعوة لزيارة المتحف يوم الخميس',
     ex2: 'ذكّرني بالاجتماع غدًا الساعة 10 صباحًا',
     ex3: 'ماذا لديّ هذا الأسبوع؟',
@@ -221,8 +229,16 @@ const I18N = {
     emptyDay: 'Nothing on this day yet',
     more: '+{n} more',
     thinking: 'One moment…',
-    listening: 'Listening…',
+    listening: 'Listening… just stop talking when you’re done',
     noSpeech: "Voice input isn't supported in this browser. Type your request instead.",
+    stopSpeaking: 'Finish speaking',
+    transcribing: 'Writing down what you said…',
+    noSpeechHeard: "I didn't hear anything. Please try again.",
+    transcribeFailed: "Couldn't turn your voice into text",
+    micDenied: 'Allow microphone access for Mudir in your browser settings, then try again',
+    micMissing: 'No microphone was found',
+    speechLang: 'Speaking language',
+    speechLangSet: 'Speaking language: {lang}',
     ex1: 'Email my employees an invite to visit the museum on Thursday',
     ex2: 'Remind me about the meeting tomorrow at 10am',
     ex3: "What's on this week?",
@@ -468,6 +484,7 @@ function applyLang() {
   $('#auth-submit').textContent = authMode === 'login' ? t('submitLogin') : t('submitRegister');
   buildWeekHeader();
   renderExamples();
+  updateSpeechLangBtn();
 }
 
 function setLang(lang) {
@@ -637,7 +654,7 @@ document.addEventListener('click', (e) => {
     if (nav.closest('.sheet')) closeSheets();
     showView(nav.dataset.view);
   }
-  if (e.target.closest('[data-ask]')) openAssistant();
+  if (e.target.closest('[data-ask]')) openAssistant(undefined, { listen: Boolean(e.target.closest('[data-voice]')) });
 });
 
 function render() {
@@ -774,9 +791,249 @@ document.addEventListener('click', async (e) => {
 });
 
 // ---------- Ask Mudir ----------
+// Voice input. Primary path: record audio and transcribe it on the server with OpenAI, which is
+// accurate in Arabic and English and works the same on iPhone, Android and laptops.
+// Fallback: the browser's own speech recognition, when recording or server transcription is unavailable.
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognizer = null;
+const canRecord = () => Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+const useServerSpeech = () => canRecord() && Boolean(state.config?.integrations.openai);
+const voiceSupported = () => useServerSpeech() || Boolean(SpeechRec);
+let voice = null; // the active listening session, if any
 let lastWasVoice = false;
+let speechOutputUnlocked = false;
+let speechLang = ['ar', 'en'].includes(store.get('mudir.speechLang')) ? store.get('mudir.speechLang') : null;
+const getSpeechLang = () => speechLang || state.lang;
+
+function fmtClock(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function updateSpeechLangBtn() {
+  const btn = $('#as-speech-lang');
+  btn.textContent = getSpeechLang() === 'ar' ? 'ع' : 'EN';
+  btn.title = t('speechLang');
+}
+$('#as-speech-lang').addEventListener('click', () => {
+  speechLang = getSpeechLang() === 'ar' ? 'en' : 'ar';
+  store.set('mudir.speechLang', speechLang);
+  updateSpeechLangBtn();
+  toast(t('speechLangSet', { lang: speechLang === 'ar' ? 'العربية' : 'English' }));
+});
+
+function setLevel(v) {
+  $('#as-mic').style.setProperty('--level', v);
+  $('#as-status').style.setProperty('--level', v);
+}
+
+function setVoiceUI(mode, text = '') {
+  const mic = $('#as-mic');
+  mic.classList.toggle('recording', mode === 'recording');
+  mic.classList.toggle('processing', mode === 'processing');
+  mic.disabled = mode === 'processing';
+  mic.setAttribute('aria-label', mode === 'recording' ? t('stopSpeaking') : t('speak'));
+  const st = $('#as-status');
+  st.hidden = mode === 'idle';
+  st.classList.toggle('processing', mode === 'processing');
+  $('#as-status-text').textContent = text;
+  if (mode !== 'recording') $('#as-timer').textContent = '';
+  if (mode === 'idle') setLevel(0);
+}
+
+// iOS only lets a page speak after a tap, so prime speech output on the tap that starts listening.
+function unlockSpeechOutput() {
+  if (speechOutputUnlocked || !('speechSynthesis' in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    speechSynthesis.speak(u);
+    speechOutputUnlocked = true;
+  } catch { /* speech output is optional */ }
+}
+
+function startVoice() {
+  if (voice) return finishVoice(); // tapping again means "I'm done"
+  unlockSpeechOutput();
+  if (useServerSpeech()) return startRecording();
+  if (SpeechRec) return startBrowserRecognition();
+  toast(t('noSpeech'), true);
+}
+
+async function startRecording() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = AC ? new AC() : null; // created inside the tap, which iOS requires
+  const s = { kind: 'record', ctx, chunks: [], heard: false, levelWorks: false, noise: [], lastLoud: 0 };
+  voice = s;
+  setVoiceUI('recording', t('listening'));
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+  } catch (err) {
+    ctx?.close().catch(() => {});
+    if (voice === s) voice = null;
+    setVoiceUI('idle');
+    toast(t(['NotAllowedError', 'SecurityError'].includes(err.name) ? 'micDenied' : 'micMissing'), true);
+    return;
+  }
+  if (voice !== s) {
+    // Closed or cancelled while the permission prompt was showing.
+    stream.getTracks().forEach((tr) => tr.stop());
+    ctx?.close().catch(() => {});
+    return;
+  }
+  s.stream = stream;
+  const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus'].find((m) => MediaRecorder.isTypeSupported?.(m)) || '';
+  try {
+    s.recorder = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
+  } catch {
+    s.recorder = new MediaRecorder(stream);
+  }
+  s.recorder.ondataavailable = (e) => e.data?.size && s.chunks.push(e.data);
+
+  if (ctx) {
+    try {
+      await ctx.resume();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      s.analyser = analyser;
+      s.buf = new Uint8Array(analyser.fftSize);
+    } catch { /* level meter and auto-stop are extras; recording still works */ }
+  }
+  s.recorder.start(250);
+  s.startedAt = performance.now();
+
+  const tick = () => {
+    if (voice !== s) return;
+    const now = performance.now();
+    const elapsed = now - s.startedAt;
+    $('#as-timer').textContent = fmtClock(elapsed);
+    if (s.analyser) {
+      s.analyser.getByteTimeDomainData(s.buf);
+      let sum = 0;
+      for (const v of s.buf) sum += ((v - 128) / 128) ** 2;
+      const rms = Math.sqrt(sum / s.buf.length);
+      if (rms > 0.0008) s.levelWorks = true;
+      if (elapsed < 300) s.noise.push(rms);
+      const floor = s.noise.length ? s.noise.reduce((a, b) => a + b, 0) / s.noise.length : 0;
+      const threshold = Math.max(0.015, floor * 2.5);
+      setLevel(Math.min(1, rms * 9));
+      if (rms > threshold) {
+        s.heard = true;
+        s.lastLoud = now;
+      }
+      // Auto-stop after a pause, but only when the level meter is known to work on this device.
+      if (s.levelWorks && s.heard && now - s.lastLoud > 1600 && elapsed > 1200) return finishVoice();
+      if (s.levelWorks && !s.heard && elapsed > 8000) return finishVoice();
+    }
+    if (elapsed > 60000) return finishVoice();
+    s.raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function startBrowserRecognition() {
+  const rec = new SpeechRec();
+  rec.lang = getSpeechLang() === 'ar' ? 'ar-SA' : 'en-US';
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.maxAlternatives = 1;
+  const s = { kind: 'browser', rec, text: '', startedAt: performance.now() };
+  voice = s;
+  setVoiceUI('recording', t('listening'));
+  // Keep the latest words whether or not the browser marks them final (iPhones often never do).
+  rec.onresult = (e) => {
+    s.text = [...e.results].map((r) => r[0].transcript).join(' ').trim();
+    $('#as-input').value = s.text;
+  };
+  rec.onerror = (e) => {
+    if (['not-allowed', 'service-not-allowed'].includes(e.error)) toast(t('micDenied'), true);
+  };
+  rec.onend = () => {
+    if (voice === s) voice = null;
+    cancelAnimationFrame(s.raf);
+    setVoiceUI('idle');
+    if (s.cancel) return;
+    if (s.text) {
+      lastWasVoice = true;
+      runCommand(s.text);
+    } else {
+      toast(t('noSpeechHeard'));
+    }
+  };
+  const tick = () => {
+    if (voice !== s) return;
+    $('#as-timer').textContent = fmtClock(performance.now() - s.startedAt);
+    s.raf = requestAnimationFrame(tick);
+  };
+  tick();
+  try {
+    rec.start();
+  } catch {
+    voice = null;
+    setVoiceUI('idle');
+    toast(t('noSpeech'), true);
+  }
+}
+
+function releaseMic(s) {
+  s.stream?.getTracks().forEach((tr) => tr.stop());
+  s.ctx?.close().catch(() => {});
+}
+
+function finishVoice({ cancel = false } = {}) {
+  const s = voice;
+  if (!s) return;
+  voice = null;
+  cancelAnimationFrame(s.raf);
+  if (s.kind === 'browser') {
+    s.cancel = cancel;
+    try { s.rec.stop(); } catch { /* already stopped */ }
+    return;
+  }
+  if (s.recorder && s.recorder.state !== 'inactive') {
+    s.recorder.onstop = () => {
+      releaseMic(s);
+      if (cancel) setVoiceUI('idle');
+      else uploadRecording(s);
+    };
+    s.recorder.stop();
+  } else {
+    releaseMic(s);
+    setVoiceUI('idle');
+  }
+}
+
+async function uploadRecording(s) {
+  const duration = performance.now() - s.startedAt;
+  if ((s.levelWorks && !s.heard) || duration < 500 || !s.chunks.length) {
+    setVoiceUI('idle');
+    toast(t('noSpeechHeard'));
+    return;
+  }
+  const type = (s.recorder.mimeType || s.chunks[0].type || 'audio/mp4').split(';')[0];
+  setVoiceUI('processing', t('transcribing'));
+  try {
+    const res = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': type, 'X-Lang': state.lang, 'X-Speech-Lang': getSpeechLang() },
+      body: new Blob(s.chunks, { type }),
+      credentials: 'same-origin',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || t('transcribeFailed'));
+    setVoiceUI('idle');
+    lastWasVoice = true;
+    runCommand(json.text);
+  } catch (err) {
+    setVoiceUI('idle');
+    toast(err.message, true);
+  }
+}
+
+function stopListening() {
+  finishVoice({ cancel: true });
+}
 
 function renderExamples() {
   $('#as-examples').innerHTML = ['ex1', 'ex2', 'ex3'].map((k) => `<button type="button" data-example="${esc(t(k))}">${esc(t(k))}</button>`).join('');
@@ -786,13 +1043,16 @@ $('#as-examples').addEventListener('click', (e) => {
   if (b) runCommand(b.dataset.example);
 });
 
-function openAssistant(text, { voice = false } = {}) {
+function openAssistant(text, { voice: fromVoice = false, listen = false } = {}) {
   openSheet('sheet-assistant');
-  $('#as-mic').hidden = !SpeechRec;
+  $('#as-mic').hidden = !voiceSupported();
+  updateSpeechLangBtn();
   $('#as-examples').hidden = $('#as-thread').children.length > 0;
   if (text) {
-    lastWasVoice = voice;
+    lastWasVoice = fromVoice;
     runCommand(text);
+  } else if (listen && voiceSupported()) {
+    startVoice(); // still inside the tap, so the browser allows the microphone
   } else if (matchMedia('(hover: hover)').matches) {
     setTimeout(() => $('#as-input').focus(), 150);
   }
@@ -827,40 +1087,7 @@ $('#as-form').addEventListener('submit', (e) => {
   runCommand(text);
 });
 
-$('#as-mic').addEventListener('click', () => {
-  if (recognizer) return stopListening();
-  if (!SpeechRec) return toast(t('noSpeech'), true);
-  recognizer = new SpeechRec();
-  recognizer.lang = state.lang === 'ar' ? 'ar-SA' : 'en-US';
-  recognizer.interimResults = true;
-  recognizer.maxAlternatives = 1;
-  $('#as-mic').classList.add('listening');
-  $('#as-input').placeholder = t('listening');
-  let finalText = '';
-  recognizer.onresult = (e) => {
-    const r = [...e.results];
-    $('#as-input').value = r.map((x) => x[0].transcript).join(' ');
-    if (r.every((x) => x.isFinal)) finalText = $('#as-input').value.trim();
-  };
-  recognizer.onerror = () => stopListening();
-  recognizer.onend = () => {
-    stopListening();
-    if (finalText) {
-      lastWasVoice = true;
-      runCommand(finalText);
-    }
-  };
-  recognizer.start();
-});
-
-function stopListening() {
-  if (recognizer) {
-    try { recognizer.stop(); } catch { /* already stopped */ }
-  }
-  recognizer = null;
-  $('#as-mic')?.classList.remove('listening');
-  if ($('#as-input')) $('#as-input').placeholder = t('askPh');
-}
+$('#as-mic').addEventListener('click', startVoice);
 
 async function runCommand(text) {
   $('#as-input').value = '';

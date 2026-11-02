@@ -102,7 +102,7 @@
   <div id="app" class="shell" hidden>
     <aside class="sidebar">
       <div class="brand"><img src="/icon.svg" alt="" width="34" height="34" /><span data-i18n="brand"></span></div>
-      <button class="ask-btn" type="button" data-ask><svg class="ic"><use href="#i-mic"/></svg><span data-i18n="askMudir"></span></button>
+      <button class="ask-btn" type="button" data-ask data-voice><svg class="ic"><use href="#i-mic"/></svg><span data-i18n="askMudir"></span></button>
       <nav class="side-nav">
         <button class="nav-item" data-view="calendar"><svg class="ic"><use href="#i-calendar"/></svg><span data-i18n="navCalendar"></span></button>
         <button class="nav-item" data-view="people"><svg class="ic"><use href="#i-users"/></svg><span data-i18n="navPeople"></span></button>
@@ -130,7 +130,7 @@
             </div>
           </header>
           <button class="ask-bar" type="button" data-ask>
-            <span class="ask-orb"><svg class="ic"><use href="#i-mic"/></svg></span>
+            <span class="ask-orb" data-voice><svg class="ic"><use href="#i-mic"/></svg></span>
             <span class="ask-text"><strong data-i18n="askMudir"></strong><small data-i18n="askHint"></small></span>
           </button>
           <div class="calendar">
@@ -184,7 +184,7 @@
       </main>
     </div>
 
-    <button class="fab" type="button" data-ask data-i18n-aria="askMudir"><svg class="ic"><use href="#i-mic"/></svg></button>
+    <button class="fab" type="button" data-ask data-voice data-i18n-aria="askMudir"><svg class="ic"><use href="#i-mic"/></svg></button>
 
     <nav class="tabbar">
       <button class="tab" data-view="calendar"><svg class="ic"><use href="#i-calendar"/></svg><span data-i18n="navCalendar"></span></button>
@@ -205,9 +205,15 @@
     </div>
     <div class="as-thread" id="as-thread"></div>
     <div class="as-examples" id="as-examples"></div>
+    <div class="as-status" id="as-status" hidden aria-live="polite">
+      <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span id="as-status-text"></span>
+      <span class="as-timer" id="as-timer"></span>
+    </div>
     <form class="as-bar" id="as-form">
-      <button type="button" class="mic-btn" id="as-mic" data-i18n-aria="speak"><svg class="ic"><use href="#i-mic"/></svg></button>
-      <input id="as-input" autocomplete="off" data-i18n-ph="askPh" />
+      <button type="button" class="mic-btn" id="as-mic" data-i18n-aria="speak"><svg class="ic"><use href="#i-mic"/></svg><span class="spinner" aria-hidden="true"></span></button>
+      <input id="as-input" autocomplete="off" enterkeyhint="send" data-i18n-ph="askPh" />
+      <button type="button" class="speech-lang" id="as-speech-lang" data-i18n-aria="speechLang"></button>
       <button type="submit" class="go-btn" data-i18n-aria="sendCommand"><svg class="ic flip-rtl mirror"><use href="#i-arrow"/></svg></button>
     </form>
   </div>

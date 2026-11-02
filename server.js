@@ -33,6 +33,9 @@ async function getJwtSecret() {
 const openaiEnabled = Boolean(process.env.OPENAI_API_KEY);
 // gpt-4o-mini leaves the API on 2027-01-14; OpenAI names gpt-6-luna as its replacement.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-6-luna';
+// Speech-to-text, tried in order. gpt-transcribe is OpenAI's named successor to the
+// gpt-4o transcribe models; the others are fallbacks if a model is unavailable to the key.
+const TRANSCRIBE_MODELS = [...new Set([process.env.OPENAI_TRANSCRIBE_MODEL, 'gpt-transcribe', 'gpt-4o-transcribe', 'whisper-1'].filter(Boolean))];
 
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 const GOOGLE_REDIRECT = `${APP_URL}/api/google/callback`;
@@ -55,6 +58,8 @@ const MSG = {
     needDate: 'حدّد تاريخًا للمهمة أولًا',
     draftLimit: 'وصلت إلى الحد الشهري للباقة المجانية. اشترك في مُدير برو للاستمرار.',
     assistantEmpty: 'قل أو اكتب ما تريد',
+    noSpeechHeard: 'لم أسمع شيئًا، حاول مرة أخرى',
+    transcribeFailed: 'تعذّر تحويل الصوت إلى نص، حاول مرة أخرى',
     sendPartial: 'أُرسلت {sent} من {total} رسائل، ثم حدث خطأ.',
     tooManyRecipients: 'يمكن الإرسال إلى {max} شخصًا كحد أقصى في المرة الواحدة.',
     noRecipients: 'أضف مستلمًا واحدًا على الأقل',
@@ -95,6 +100,8 @@ const MSG = {
     needDate: 'Set a date for this task first',
     draftLimit: "You've reached this month's free limit. Upgrade to Mudir Pro to keep going.",
     assistantEmpty: 'Say or type what you need',
+    noSpeechHeard: "I didn't hear anything. Please try again.",
+    transcribeFailed: "Couldn't turn your voice into text. Please try again.",
     sendPartial: 'Sent {sent} of {total} emails, then something went wrong.',
     tooManyRecipients: 'You can send to at most {max} people at once.',
     noRecipients: 'Add at least one recipient',
@@ -650,6 +657,54 @@ app.post('/api/ai/plan', auth, h(async (req, res) => {
   } catch {
     fail(res, 502, msg(req, 'aiUnavailable'));
   }
+}));
+
+// ---------- Speech to text ----------
+// The browser records audio (webm on Chrome/Android, mp4 on iPhone) and posts the raw bytes here.
+const AUDIO_EXT = { 'audio/webm': 'webm', 'audio/mp4': 'mp4', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/aac': 'm4a', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/mpeg': 'mp3' };
+
+app.post('/api/transcribe', auth, express.raw({ type: () => true, limit: '4mb' }), h(async (req, res) => {
+  if (!openaiEnabled) return fail(res, 503, msg(req, 'aiUnavailable'));
+  if (usage(req.user).aiDrafts >= PLANS[req.user.plan].aiDrafts) return fail(res, 402, msg(req, 'draftLimit'));
+  const audio = req.body;
+  if (!Buffer.isBuffer(audio) || audio.length < 800) return fail(res, 400, msg(req, 'noSpeechHeard'));
+  const type = String(req.get('content-type') || 'audio/webm').split(';')[0].trim().toLowerCase();
+  const ext = AUDIO_EXT[type] || 'webm';
+  const lang = req.get('x-speech-lang') === 'en' ? 'en' : req.get('x-speech-lang') === 'ar' ? 'ar' : langOf(req);
+
+  // Saved names and groups as a spelling hint, so "سارة" and "Omar" come back spelled the way they are saved.
+  const contacts = await query('SELECT name, group_name FROM contacts WHERE user_id = $1 LIMIT 200', [req.user.id]);
+  const hint = ['مُدير', 'Mudir', ...new Set(contacts.flatMap((c) => [c.name, c.group_name]).filter(Boolean))].join('، ').slice(0, 700);
+
+  for (const model of TRANSCRIBE_MODELS) {
+    const form = new FormData();
+    form.append('file', new Blob([audio], { type }), `speech.${ext}`);
+    form.append('model', model);
+    form.append('language', lang);
+    form.append('prompt', hint);
+    form.append('response_format', 'json');
+    let r;
+    try {
+      r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY.trim()}` },
+        body: form,
+      });
+    } catch (err) {
+      console.error('Transcription request failed:', err.message);
+      return fail(res, 502, msg(req, 'transcribeFailed'));
+    }
+    if (r.ok) {
+      const text = String((await r.json()).text || '').trim();
+      if (!text) return fail(res, 422, msg(req, 'noSpeechHeard'));
+      return res.json({ text, model });
+    }
+    const detail = await r.text();
+    console.error('Transcription error', model, r.status, detail.slice(0, 300));
+    // Try the next model only when this one is unavailable to the key; other errors are final.
+    if (![400, 403, 404].includes(r.status) || !/model/i.test(detail)) break;
+  }
+  fail(res, 502, msg(req, 'transcribeFailed'));
 }));
 
 // ---------- Ask Mudir (voice / text assistant) ----------
