@@ -1,0 +1,48 @@
+# Render Blueprint — Dashboard → New → Blueprint → pick this repo.
+# Values marked `sync: false` are asked for in the dashboard during setup (leave blank to keep that integration in demo mode).
+services:
+  - type: web
+    name: mudir
+    runtime: node
+    plan: starter # a persistent disk requires a paid plan
+    region: frankfurt # closest Render region to the Middle East
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    disk:
+      name: mudir-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PRO_PRICE_LABEL
+        value: 9$ شهريًا

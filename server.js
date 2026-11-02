@@ -8,7 +8,8 @@ const nodemailer = require('nodemailer');
 const { data, save, id, devSecret } = require('./lib/db');
 
 const PORT = Number(process.env.PORT) || 3000;
-const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+// Render sets RENDER_EXTERNAL_URL automatically, so APP_URL is only needed for a custom domain.
+const APP_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 if (IS_PROD && !process.env.JWT_SECRET) {
@@ -67,6 +68,8 @@ function publicUser(user) {
 // ---------- App ----------
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1); // behind the host's HTTPS proxy
+app.get('/healthz', (req, res) => res.send('ok'));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'same-origin');
