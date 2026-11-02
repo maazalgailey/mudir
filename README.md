@@ -55,17 +55,20 @@ npm start              # http://localhost:3000
 - لا يُرسل أي بريد إلا إذا منح المستخدم الإذن (يُحفظ مع وقت الموافقة)، **و** أكّد كل رسالة في شاشة المعاينة.
 - الخادم يرفض الإرسال (403) دون الإذن حتى لو استُدعيت الواجهة البرمجية مباشرة.
 
-## النشر على Render
-الملف `render.yaml` يجهّز كل شيء تلقائيًا (خطة Starter مع قرص دائم 1GB في فرانكفورت):
-1. سجّل في render.com باستخدام حساب GitHub.
-2. Dashboard ← **New** ← **Blueprint** ← اختر المستودع `mudir`.
-3. أدخل المفاتيح المطلوبة (أو اتركها فارغة لتعمل في الوضع التجريبي) ثم **Apply**.
-4. بعد النشر: ضع رابط `https://…onrender.com/api/billing/webhook` في Stripe كنقطة Webhook.
+## قاعدة البيانات
+- **على Vercel:** PostgreSQL من Neon (مجاني) — يضبط Vercel المتغير `DATABASE_URL` تلقائيًا عند ربط قاعدة البيانات.
+- **محليًا:** إن لم يوجد `DATABASE_URL` يعمل Postgres مدمج (PGlite) ويحفظ البيانات في `data/pglite`.
+- الجداول تُنشأ تلقائيًا عند أول تشغيل.
 
-كل `git push` إلى `main` يعيد النشر تلقائيًا. `JWT_SECRET` يُولَّد تلقائيًا، و`APP_URL` يُؤخذ من Render (اضبطه فقط عند استخدام نطاق خاص).
+## النشر على Vercel
+1. `npm i -g vercel` ثم `vercel login`.
+2. `vercel` داخل المجلد لإنشاء المشروع.
+3. في لوحة Vercel: **Storage** ← **Create Database** ← **Neon** ← اربطها بالمشروع.
+4. **Settings → Environment Variables**: أضف `JWT_SECRET` (نص عشوائي طويل) ومفاتيح OpenAI والبريد وStripe.
+5. `vercel --prod` للنشر. اربط المستودع من **Settings → Git** ليُعاد النشر تلقائيًا مع كل `git push`.
+6. Stripe Webhook: `https://نطاقك/api/billing/webhook`.
 
-يعمل أيضًا على أي استضافة Node أخرى: اضبط `NODE_ENV=production` و`JWT_SECRET` و`APP_URL` و`DATA_DIR` (مسار قرص دائم).
-البيانات تُحفظ في `db.json` — مناسب للبداية؛ انتقل إلى PostgreSQL عند زيادة المستخدمين.
+`APP_URL` يُؤخذ تلقائيًا من Vercel؛ اضبطه فقط عند استخدام نطاق خاص.
 
 ## البنية
 ```

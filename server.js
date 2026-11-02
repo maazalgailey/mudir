@@ -1,22 +1,38 @@
 require('dotenv').config();
+const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const { data, save, id, devSecret } = require('./lib/db');
+const { query, one, id } = require('./lib/db');
 
 const PORT = Number(process.env.PORT) || 3000;
-// Render sets RENDER_EXTERNAL_URL automatically, so APP_URL is only needed for a custom domain.
-const APP_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+// Vercel sets VERCEL_PROJECT_PRODUCTION_URL automatically, so APP_URL is only needed for a custom domain.
+const APP_URL = (
+  process.env.APP_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
+  `http://localhost:${PORT}`
+).replace(/\/$/, '');
 
 if (IS_PROD && !process.env.JWT_SECRET) {
-  console.error('JWT_SECRET is required in production.');
-  process.exit(1);
+  throw new Error('JWT_SECRET is required in production.');
 }
 const JWT_SECRET = process.env.JWT_SECRET || devSecret();
+
+// Persistent local secret so dev sessions survive restarts when JWT_SECRET is unset.
+function devSecret() {
+  const dir = path.join(__dirname, 'data');
+  const file = path.join(dir, '.dev-secret');
+  if (fs.existsSync(file)) return fs.readFileSync(file, 'utf8');
+  fs.mkdirSync(dir, { recursive: true });
+  const secret = crypto.randomBytes(48).toString('hex');
+  fs.writeFileSync(file, secret);
+  return secret;
+}
 
 // ---------- Integrations ----------
 const openaiEnabled = Boolean(process.env.OPENAI_API_KEY);
@@ -46,30 +62,63 @@ function monthKey() {
 }
 
 function usage(user) {
-  const m = monthKey();
-  if (!user.usage || user.usage.month !== m) user.usage = { month: m, aiDrafts: 0, emails: 0 };
-  return user.usage;
+  return user.usage_month === monthKey()
+    ? { aiDrafts: user.usage_ai, emails: user.usage_emails }
+    : { aiDrafts: 0, emails: 0 };
+}
+
+// Atomically counts one use, resetting both counters when a new month starts.
+async function bumpUsage(userId, field) {
+  const ai = field === 'ai';
+  return one(
+    `UPDATE users SET
+       usage_ai = CASE WHEN usage_month = $2 THEN usage_ai ELSE 0 END + $3,
+       usage_emails = CASE WHEN usage_month = $2 THEN usage_emails ELSE 0 END + $4,
+       usage_month = $2
+     WHERE id = $1 RETURNING *`,
+    [userId, monthKey(), ai ? 1 : 0, ai ? 0 : 1],
+  );
 }
 
 function publicUser(user) {
-  const u = usage(user);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     plan: user.plan,
-    emailConsent: Boolean(user.emailConsent),
-    hasBilling: Boolean(user.stripeCustomerId),
-    usage: { aiDrafts: u.aiDrafts, emails: u.emails },
+    emailConsent: user.email_consent,
+    hasBilling: Boolean(user.stripe_customer_id),
+    usage: usage(user),
     limits: PLANS[user.plan],
   };
+}
+
+function taskOut(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    title: r.title,
+    notes: r.notes,
+    date: r.date,
+    time: r.time,
+    priority: r.priority,
+    done: r.done,
+    contactName: r.contact_name,
+    contactEmail: r.contact_email,
+    draft: r.draft,
+    lastEmailAt: r.last_email_at,
+    createdAt: r.created_at,
+  };
+}
+
+function emailOut(r) {
+  return { id: r.id, taskId: r.task_id, to: r.to_addr, subject: r.subject, body: r.body, status: r.status, sentAt: r.sent_at };
 }
 
 // ---------- App ----------
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1); // behind the host's HTTPS proxy
-app.get('/healthz', (req, res) => res.send('ok'));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'same-origin');
@@ -77,8 +126,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Express 4 does not catch rejected promises, so async routes go through this.
+const h = (fn) => (req, res, next) => fn(req, res, next).catch(next);
+
+app.get('/api/health', h(async (req, res) => {
+  await query('SELECT 1');
+  res.send('ok');
+}));
+
 // Stripe webhook needs the raw body, so it is registered before express.json().
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), h(async (req, res) => {
   if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) return res.status(400).send('Stripe not configured');
   let event;
   try {
@@ -89,24 +146,21 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req
 
   const obj = event.data.object;
   if (event.type === 'checkout.session.completed') {
-    const user = data.users.find((u) => u.id === obj.client_reference_id);
-    if (user) {
-      user.plan = 'pro';
-      user.stripeCustomerId = obj.customer;
-      user.subscriptionId = obj.subscription;
-      save();
-    }
+    await query(`UPDATE users SET plan = 'pro', stripe_customer_id = $2, subscription_id = $3 WHERE id = $1`, [
+      obj.client_reference_id,
+      obj.customer,
+      obj.subscription,
+    ]);
   } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-    const user = data.users.find((u) => u.stripeCustomerId === obj.customer);
-    if (user) {
-      const active = ['active', 'trialing', 'past_due'].includes(obj.status) && event.type !== 'customer.subscription.deleted';
-      user.plan = active ? 'pro' : 'free';
-      user.subscriptionId = obj.id;
-      save();
-    }
+    const active = ['active', 'trialing', 'past_due'].includes(obj.status) && event.type !== 'customer.subscription.deleted';
+    await query('UPDATE users SET plan = $2, subscription_id = $3 WHERE stripe_customer_id = $1', [
+      obj.customer,
+      active ? 'pro' : 'free',
+      obj.id,
+    ]);
   }
   res.json({ received: true });
-});
+}));
 
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
@@ -126,16 +180,17 @@ function setSession(res, user) {
   });
 }
 
-function auth(req, res, next) {
+const auth = h(async (req, res, next) => {
+  let sub;
   try {
-    const { sub } = jwt.verify(req.cookies.session || '', JWT_SECRET);
-    req.user = data.users.find((u) => u.id === sub);
-    if (!req.user) throw new Error('missing');
-    next();
+    ({ sub } = jwt.verify(req.cookies.session || '', JWT_SECRET));
   } catch {
-    fail(res, 401, 'يرجى تسجيل الدخول');
+    return fail(res, 401, 'يرجى تسجيل الدخول');
   }
-}
+  req.user = await one('SELECT * FROM users WHERE id = $1', [sub]);
+  if (!req.user) return fail(res, 401, 'يرجى تسجيل الدخول');
+  next();
+});
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -152,39 +207,33 @@ app.get('/api/config', (req, res) => {
 });
 
 // ---------- Auth ----------
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', h(async (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 80);
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   if (!name) return fail(res, 400, 'الاسم مطلوب');
   if (!EMAIL_RE.test(email)) return fail(res, 400, 'البريد الإلكتروني غير صالح');
   if (password.length < 8) return fail(res, 400, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-  if (data.users.some((u) => u.email === email)) return fail(res, 409, 'هذا البريد مسجّل مسبقًا');
 
-  const user = {
-    id: id(),
-    name,
-    email,
-    passwordHash: await bcrypt.hash(password, 10),
-    plan: 'free',
-    emailConsent: false,
-    createdAt: new Date().toISOString(),
-  };
-  data.users.push(user);
-  save();
+  const user = await one(
+    `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (email) DO NOTHING RETURNING *`,
+    [id(), name, email, await bcrypt.hash(password, 10)],
+  );
+  if (!user) return fail(res, 409, 'هذا البريد مسجّل مسبقًا');
   setSession(res, user);
   res.json({ user: publicUser(user) });
-});
+}));
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', h(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
-  const user = data.users.find((u) => u.email === email);
-  if (!user || !(await bcrypt.compare(String(req.body.password || ''), user.passwordHash))) {
+  const user = await one('SELECT * FROM users WHERE email = $1', [email]);
+  if (!user || !(await bcrypt.compare(String(req.body.password || ''), user.password_hash))) {
     return fail(res, 401, 'البريد أو كلمة المرور غير صحيحة');
   }
   setSession(res, user);
   res.json({ user: publicUser(user) });
-});
+}));
 
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('session');
@@ -193,15 +242,19 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/me', auth, (req, res) => res.json({ user: publicUser(req.user) }));
 
-app.patch('/api/me', auth, (req, res) => {
-  if (typeof req.body.name === 'string' && req.body.name.trim()) req.user.name = req.body.name.trim().slice(0, 80);
-  if (typeof req.body.emailConsent === 'boolean') {
-    req.user.emailConsent = req.body.emailConsent;
-    req.user.emailConsentAt = new Date().toISOString();
+app.patch('/api/me', auth, h(async (req, res) => {
+  let user = req.user;
+  if (typeof req.body.name === 'string' && req.body.name.trim()) {
+    user = await one('UPDATE users SET name = $2 WHERE id = $1 RETURNING *', [user.id, req.body.name.trim().slice(0, 80)]);
   }
-  save();
-  res.json({ user: publicUser(req.user) });
-});
+  if (typeof req.body.emailConsent === 'boolean') {
+    user = await one('UPDATE users SET email_consent = $2, email_consent_at = now() WHERE id = $1 RETURNING *', [
+      user.id,
+      req.body.emailConsent,
+    ]);
+  }
+  res.json({ user: publicUser(user) });
+}));
 
 // ---------- Tasks ----------
 function cleanTask(body, existing = {}) {
@@ -227,44 +280,54 @@ function cleanTask(body, existing = {}) {
   return t;
 }
 
-function ownTask(req, res) {
-  const task = data.tasks.find((t) => t.id === req.params.id && t.userId === req.user.id);
-  if (!task) fail(res, 404, 'المهمة غير موجودة');
-  return task;
+async function findTask(taskId, userId) {
+  const row = await one('SELECT * FROM tasks WHERE id = $1 AND user_id = $2', [taskId, userId]);
+  return row && taskOut(row);
 }
 
-app.get('/api/tasks', auth, (req, res) => {
-  const tasks = data.tasks
-    .filter((t) => t.userId === req.user.id)
-    .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '').localeCompare(b.time || ''));
-  res.json({ tasks });
-});
+async function saveTask(t) {
+  const row = await one(
+    `UPDATE tasks SET title = $2, notes = $3, date = $4, time = $5, priority = $6, done = $7,
+       contact_name = $8, contact_email = $9, draft = $10, updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [t.id, t.title, t.notes, t.date, t.time, t.priority, t.done, t.contactName, t.contactEmail, t.draft ? JSON.stringify(t.draft) : null],
+  );
+  return taskOut(row);
+}
 
-app.post('/api/tasks', auth, (req, res) => {
-  const task = cleanTask(req.body, { priority: 'medium', done: false, date: '', time: '', notes: '' });
-  if (!task.title) return fail(res, 400, 'عنوان المهمة مطلوب');
-  Object.assign(task, { id: id(), userId: req.user.id, createdAt: new Date().toISOString() });
-  data.tasks.push(task);
-  save();
-  res.json({ task });
-});
+app.get('/api/tasks', auth, h(async (req, res) => {
+  const rows = await query(
+    `SELECT * FROM tasks WHERE user_id = $1
+     ORDER BY COALESCE(NULLIF(date, ''), '9999'), time, created_at`,
+    [req.user.id],
+  );
+  res.json({ tasks: rows.map(taskOut) });
+}));
 
-app.patch('/api/tasks/:id', auth, (req, res) => {
-  const task = ownTask(req, res);
-  if (!task) return;
-  Object.assign(task, cleanTask(req.body, task), { updatedAt: new Date().toISOString() });
-  if (!task.title) return fail(res, 400, 'عنوان المهمة مطلوب');
-  save();
-  res.json({ task });
-});
+app.post('/api/tasks', auth, h(async (req, res) => {
+  const t = cleanTask(req.body, { priority: 'medium', done: false, date: '', time: '', notes: '', contactName: '', contactEmail: '' });
+  if (!t.title) return fail(res, 400, 'عنوان المهمة مطلوب');
+  const row = await one(
+    `INSERT INTO tasks (id, user_id, title, notes, date, time, priority, done, contact_name, contact_email, draft)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [id(), req.user.id, t.title, t.notes, t.date, t.time, t.priority, t.done, t.contactName, t.contactEmail, t.draft ? JSON.stringify(t.draft) : null],
+  );
+  res.json({ task: taskOut(row) });
+}));
 
-app.delete('/api/tasks/:id', auth, (req, res) => {
-  const task = ownTask(req, res);
-  if (!task) return;
-  data.tasks.splice(data.tasks.indexOf(task), 1);
-  save();
+app.patch('/api/tasks/:id', auth, h(async (req, res) => {
+  const task = await findTask(req.params.id, req.user.id);
+  if (!task) return fail(res, 404, 'المهمة غير موجودة');
+  const updated = cleanTask(req.body, task);
+  if (!updated.title) return fail(res, 400, 'عنوان المهمة مطلوب');
+  res.json({ task: await saveTask(updated) });
+}));
+
+app.delete('/api/tasks/:id', auth, h(async (req, res) => {
+  const rows = await query('DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING id', [req.params.id, req.user.id]);
+  if (!rows.length) return fail(res, 404, 'المهمة غير موجودة');
   res.json({ ok: true });
-});
+}));
 
 // ---------- Calendar (.ics) ----------
 function icsEscape(s) {
@@ -275,8 +338,8 @@ function icsEvent(t) {
   const d = t.date.replace(/-/g, '');
   const lines = ['BEGIN:VEVENT', `UID:${t.id}@mudir`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`];
   if (t.time) {
-    const [h, m] = t.time.split(':').map(Number);
-    const end = `${String(Math.min(h + 1, 23)).padStart(2, '0')}${String(m).padStart(2, '0')}00`;
+    const [hh, m] = t.time.split(':').map(Number);
+    const end = `${String(Math.min(hh + 1, 23)).padStart(2, '0')}${String(m).padStart(2, '0')}00`;
     lines.push(`DTSTART:${d}T${t.time.replace(':', '')}00`, `DTEND:${d}T${end}`);
   } else {
     const next = new Date(t.date + 'T00:00:00Z');
@@ -296,16 +359,17 @@ function sendIcs(res, tasks, filename) {
   res.send(body);
 }
 
-app.get('/api/calendar.ics', auth, (req, res) => {
-  sendIcs(res, data.tasks.filter((t) => t.userId === req.user.id && t.date && !t.done), 'mudir-tasks.ics');
-});
+app.get('/api/calendar.ics', auth, h(async (req, res) => {
+  const rows = await query(`SELECT * FROM tasks WHERE user_id = $1 AND date <> '' AND NOT done`, [req.user.id]);
+  sendIcs(res, rows.map(taskOut), 'mudir-tasks.ics');
+}));
 
-app.get('/api/tasks/:id/ics', auth, (req, res) => {
-  const task = ownTask(req, res);
-  if (!task) return;
+app.get('/api/tasks/:id/ics', auth, h(async (req, res) => {
+  const task = await findTask(req.params.id, req.user.id);
+  if (!task) return fail(res, 404, 'المهمة غير موجودة');
   if (!task.date) return fail(res, 400, 'حدّد تاريخًا للمهمة أولًا');
   sendIcs(res, [task], 'mudir-task.ics');
-});
+}));
 
 // ---------- AI ----------
 async function openaiJSON(system, user) {
@@ -333,18 +397,17 @@ async function openaiJSON(system, user) {
 
 const TONES = { formal: 'رسمي ومهني', friendly: 'ودّي ولطيف', brief: 'مختصر ومباشر' };
 
-app.post('/api/ai/draft', auth, async (req, res) => {
-  const task = data.tasks.find((t) => t.id === req.body.taskId && t.userId === req.user.id);
+app.post('/api/ai/draft', auth, h(async (req, res) => {
+  const task = await findTask(req.body.taskId, req.user.id);
   if (!task) return fail(res, 404, 'المهمة غير موجودة');
-  const u = usage(req.user);
   const limit = PLANS[req.user.plan].aiDrafts;
-  if (u.aiDrafts >= limit) {
+  if (usage(req.user).aiDrafts >= limit) {
     return fail(res, 402, `وصلت إلى حد ${limit} صياغات هذا الشهر. اشترك في الباقة الاحترافية للمزيد.`);
   }
 
   const kind = req.body.kind === 'message' ? 'message' : 'email';
   const tone = TONES[req.body.tone] || TONES.formal;
-  const recipient = String(req.body.contactName || task.contactName || '').slice(0, 120);
+  const recipient = String(req.body.contactName ?? task.contactName ?? '').trim().slice(0, 120);
   const instructions = String(req.body.instructions || '').slice(0, 1000);
   const lang = req.body.lang === 'en' ? 'English' : 'Arabic (Modern Standard, natural)';
 
@@ -386,16 +449,14 @@ app.post('/api/ai/draft', auth, async (req, res) => {
     };
   }
 
-  u.aiDrafts += 1;
-  task.draft = { subject: draft.subject, body: draft.body, kind };
-  if (req.body.contactName !== undefined) task.contactName = recipient;
-  save();
-  res.json({ draft: { ...draft, kind }, user: publicUser(req.user) });
-});
+  const user = await bumpUsage(req.user.id, 'ai');
+  await saveTask({ ...task, contactName: recipient, draft: { subject: draft.subject, body: draft.body, kind } });
+  res.json({ draft: { ...draft, kind }, user: publicUser(user) });
+}));
 
-app.post('/api/ai/plan', auth, async (req, res) => {
+app.post('/api/ai/plan', auth, h(async (req, res) => {
   if (!PLANS[req.user.plan].aiPlan) return fail(res, 402, 'ترتيب الأولويات الذكي متاح في الباقة الاحترافية.');
-  const open = data.tasks.filter((t) => t.userId === req.user.id && !t.done).slice(0, 60);
+  const open = (await query('SELECT * FROM tasks WHERE user_id = $1 AND NOT done ORDER BY created_at LIMIT 60', [req.user.id])).map(taskOut);
   if (!open.length) return res.json({ plan: [], summary: 'لا توجد مهام مفتوحة. أحسنت!' });
   const today = new Date().toISOString().slice(0, 10);
 
@@ -426,12 +487,12 @@ app.post('/api/ai/plan', auth, async (req, res) => {
   } catch (err) {
     fail(res, 502, err.message);
   }
-});
+}));
 
 // ---------- Email ----------
-app.post('/api/email/send', auth, async (req, res) => {
+app.post('/api/email/send', auth, h(async (req, res) => {
   const user = req.user;
-  if (!user.emailConsent) {
+  if (!user.email_consent) {
     return fail(res, 403, 'يجب منح الإذن بإرسال البريد نيابةً عنك من صفحة الحساب أولًا.');
   }
   if (req.body.confirm !== true) return fail(res, 400, 'يجب تأكيد الإرسال');
@@ -442,12 +503,11 @@ app.post('/api/email/send', auth, async (req, res) => {
   if (!EMAIL_RE.test(to)) return fail(res, 400, 'بريد المستلم غير صالح');
   if (!subject || !body.trim()) return fail(res, 400, 'العنوان والنص مطلوبان');
 
-  const task = req.body.taskId ? data.tasks.find((t) => t.id === req.body.taskId && t.userId === user.id) : null;
-  const u = usage(user);
+  const task = req.body.taskId ? await findTask(req.body.taskId, user.id) : null;
   const limit = PLANS[user.plan].emails;
-  if (u.emails >= limit) return fail(res, 402, `وصلت إلى حد ${limit} رسالة بريد هذا الشهر.`);
+  if (usage(user).emails >= limit) return fail(res, 402, `وصلت إلى حد ${limit} رسالة بريد هذا الشهر.`);
 
-  const record = { id: id(), userId: user.id, taskId: task?.id || null, to, subject, body, sentAt: new Date().toISOString() };
+  let status;
   if (emailEnabled) {
     try {
       const fromAddr = process.env.MAIL_FROM.match(/<(.+)>/)?.[1] || process.env.MAIL_FROM;
@@ -462,40 +522,39 @@ app.post('/api/email/send', auth, async (req, res) => {
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')}</div>`,
       });
-      record.status = 'sent';
+      status = 'sent';
     } catch (err) {
       console.error('Email error:', err.message);
       return fail(res, 502, 'تعذّر إرسال البريد. تحقّق من إعدادات SMTP.');
     }
   } else {
     console.log(`[demo email] to=${to} subject=${subject}\n${body}\n`);
-    record.status = 'demo';
+    status = 'demo';
   }
 
-  u.emails += 1;
-  data.emails.push(record);
-  if (task) task.lastEmailAt = record.sentAt;
-  save();
-  res.json({ email: record, user: publicUser(user) });
-});
+  const row = await one(
+    `INSERT INTO emails (id, user_id, task_id, to_addr, subject, body, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [id(), user.id, task?.id || null, to, subject, body, status],
+  );
+  if (task) await query('UPDATE tasks SET last_email_at = $2 WHERE id = $1', [task.id, row.sent_at]);
+  const updated = await bumpUsage(user.id, 'email');
+  res.json({ email: emailOut(row), user: publicUser(updated) });
+}));
 
-app.get('/api/email/log', auth, (req, res) => {
-  const emails = data.emails
-    .filter((e) => e.userId === req.user.id)
-    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
-    .slice(0, 100);
-  res.json({ emails });
-});
+app.get('/api/email/log', auth, h(async (req, res) => {
+  const rows = await query('SELECT * FROM emails WHERE user_id = $1 ORDER BY sent_at DESC LIMIT 100', [req.user.id]);
+  res.json({ emails: rows.map(emailOut) });
+}));
 
 // ---------- Billing ----------
-app.post('/api/billing/checkout', auth, async (req, res) => {
+app.post('/api/billing/checkout', auth, h(async (req, res) => {
   if (!stripeEnabled) return fail(res, 400, 'الدفع غير مفعّل على الخادم بعد.');
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       client_reference_id: req.user.id,
-      ...(req.user.stripeCustomerId ? { customer: req.user.stripeCustomerId } : { customer_email: req.user.email }),
+      ...(req.user.stripe_customer_id ? { customer: req.user.stripe_customer_id } : { customer_email: req.user.email }),
       locale: 'auto',
       allow_promotion_codes: true,
       success_url: `${APP_URL}/?billing=success#account`,
@@ -506,13 +565,13 @@ app.post('/api/billing/checkout', auth, async (req, res) => {
     console.error('Stripe checkout error:', err.message);
     fail(res, 502, 'تعذّر بدء عملية الدفع');
   }
-});
+}));
 
-app.post('/api/billing/portal', auth, async (req, res) => {
-  if (!stripe || !req.user.stripeCustomerId) return fail(res, 400, 'لا يوجد اشتراك لإدارته');
+app.post('/api/billing/portal', auth, h(async (req, res) => {
+  if (!stripe || !req.user.stripe_customer_id) return fail(res, 400, 'لا يوجد اشتراك لإدارته');
   try {
     const session = await stripe.billingPortal.sessions.create({
-      customer: req.user.stripeCustomerId,
+      customer: req.user.stripe_customer_id,
       return_url: `${APP_URL}/#account`,
     });
     res.json({ url: session.url });
@@ -520,20 +579,32 @@ app.post('/api/billing/portal', auth, async (req, res) => {
     console.error('Stripe portal error:', err.message);
     fail(res, 502, 'تعذّر فتح بوابة الاشتراك');
   }
-});
+}));
 
 // Local testing only: lets you try Pro features before Stripe keys are set.
-app.post('/api/billing/demo-upgrade', auth, (req, res) => {
+app.post('/api/billing/demo-upgrade', auth, h(async (req, res) => {
   if (stripeEnabled || IS_PROD) return fail(res, 404, 'غير متاح');
-  req.user.plan = req.user.plan === 'pro' ? 'free' : 'pro';
-  save();
-  res.json({ user: publicUser(req.user) });
-});
+  const user = await one('UPDATE users SET plan = $2 WHERE id = $1 RETURNING *', [
+    req.user.id,
+    req.user.plan === 'pro' ? 'free' : 'pro',
+  ]);
+  res.json({ user: publicUser(user) });
+}));
 
 app.use('/api', (req, res) => fail(res, 404, 'غير موجود'));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => {
-  console.log(`مُدير يعمل على ${APP_URL}`);
-  console.log(`  OpenAI: ${openaiEnabled ? 'مفعّل' : 'تجريبي'} | Email: ${emailEnabled ? 'مفعّل' : 'تجريبي'} | Stripe: ${stripeEnabled ? 'مفعّل' : 'تجريبي'}`);
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  fail(res, 500, 'حدث خطأ في الخادم، حاول مرة أخرى');
 });
+
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`مُدير يعمل على ${APP_URL}`);
+    console.log(`  OpenAI: ${openaiEnabled ? 'مفعّل' : 'تجريبي'} | Email: ${emailEnabled ? 'مفعّل' : 'تجريبي'} | Stripe: ${stripeEnabled ? 'مفعّل' : 'تجريبي'}`);
+  });
+}
