@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f5c4d" />
+  <title>مُدير — مساعدك الذكي للمهام</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- ===== Auth ===== -->
+  <section id="auth" class="auth" hidden>
+    <div class="auth-card">
+      <div class="brand">
+        <img src="/icon.svg" alt="" width="56" height="56" />
+        <h1>مُدير</h1>
+        <p>مهامك، مواعيدك، ورسائلك — في مكان واحد وبمساعدة الذكاء الاصطناعي.</p>
+      </div>
+      <div class="seg" role="tablist">
+        <button type="button" class="seg-btn active" data-auth="login">تسجيل الدخول</button>
+        <button type="button" class="seg-btn" data-auth="register">حساب جديد</button>
+      </div>
+      <form id="auth-form" class="stack" novalidate>
+        <label class="field" data-only="register" hidden>
+          <span>الاسم</span>
+          <input name="name" autocomplete="name" />
+        </label>
+        <label class="field">
+          <span>البريد الإلكتروني</span>
+          <input name="email" type="email" dir="ltr" autocomplete="email" required />
+        </label>
+        <label class="field">
+          <span>كلمة المرور</span>
+          <input name="password" type="password" dir="ltr" autocomplete="current-password" minlength="8" required />
+        </label>
+        <p class="form-error" id="auth-error" role="alert"></p>
+        <button class="btn primary block" type="submit" id="auth-submit">دخول</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===== App ===== -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div>
+        <p class="muted small" id="today-label"></p>
+        <h2 id="hello"></h2>
+      </div>
+      <span class="plan-badge" id="plan-badge"></span>
+    </header>
+
+    <main>
+      <!-- Tasks -->
+      <section class="view" id="view-tasks">
+        <div class="chips" id="task-filters">
+          <button class="chip active" data-filter="today">اليوم</button>
+          <button class="chip" data-filter="upcoming">القادمة</button>
+          <button class="chip" data-filter="overdue">المتأخرة</button>
+          <button class="chip" data-filter="all">الكل</button>
+          <button class="chip" data-filter="done">المكتملة</button>
+        </div>
+        <button class="ai-banner" id="ai-plan-btn" type="button">
+          <span class="spark">✦</span>
+          <span><strong>رتّب أولوياتي</strong><small>دع الذكاء الاصطناعي يقترح بماذا تبدأ</small></span>
+          <span class="pro-tag">PRO</span>
+        </button>
+        <div id="plan-result"></div>
+        <ul class="task-list" id="task-list"></ul>
+      </section>
+
+      <!-- Calendar -->
+      <section class="view" id="view-calendar" hidden>
+        <div class="cal-head">
+          <button class="icon-btn" id="cal-prev" aria-label="الشهر السابق">›</button>
+          <h3 id="cal-title"></h3>
+          <button class="icon-btn" id="cal-next" aria-label="الشهر التالي">‹</button>
+        </div>
+        <div class="cal-grid cal-week" id="cal-week"></div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-day-head">
+          <h4 id="cal-day-title"></h4>
+          <button class="btn ghost sm" id="cal-add">+ مهمة لهذا اليوم</button>
+        </div>
+        <ul class="task-list" id="cal-day-list"></ul>
+        <a class="btn ghost block" href="/api/calendar.ics" download>⤓ تصدير كل المهام إلى تقويمك (.ics)</a>
+        <p class="muted small center">يعمل مع تقويم Google وApple وOutlook.</p>
+      </section>
+
+      <!-- Emails -->
+      <section class="view" id="view-emails" hidden>
+        <h3 class="section-title">البريد المُرسل</h3>
+        <ul class="email-list" id="email-list"></ul>
+      </section>
+
+      <!-- Account -->
+      <section class="view" id="view-account" hidden>
+        <div class="card">
+          <h3 class="section-title">الحساب</h3>
+          <p id="acc-name" class="strong"></p>
+          <p id="acc-email" class="muted" dir="ltr" style="text-align:right"></p>
+        </div>
+
+        <div class="card" id="plan-card"></div>
+
+        <div class="card">
+          <h3 class="section-title">الاستخدام هذا الشهر</h3>
+          <div id="usage"></div>
+        </div>
+
+        <div class="card">
+          <div class="row between">
+            <div>
+              <h3 class="section-title">إذن إرسال البريد</h3>
+              <p class="muted small">يسمح لمُدير بإرسال الرسائل التي توافق عليها باسمك. لن يُرسَل أي بريد دون تأكيدك لكل رسالة.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="consent-toggle" />
+              <span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="section-title">التكاملات</h3>
+          <ul class="integrations" id="integrations"></ul>
+        </div>
+
+        <button class="btn ghost block danger-text" id="logout">تسجيل الخروج</button>
+      </section>
+    </main>
+
+    <button class="fab" id="fab" aria-label="مهمة جديدة">+</button>
+
+    <nav class="tabbar">
+      <button class="tab active" data-view="tasks"><span class="ti">☑</span>المهام</button>
+      <button class="tab" data-view="calendar"><span class="ti">▦</span>التقويم</button>
+      <button class="tab" data-view="emails"><span class="ti">✉</span>البريد</button>
+      <button class="tab" data-view="account"><span class="ti">◉</span>الحساب</button>
+    </nav>
+  </div>
+
+  <!-- ===== Sheets ===== -->
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <!-- Task editor -->
+  <div class="sheet" id="sheet-edit" hidden role="dialog" aria-modal="true" aria-labelledby="edit-title">
+    <div class="sheet-grip"></div>
+    <h3 id="edit-title">مهمة جديدة</h3>
+    <form id="edit-form" class="stack">
+      <label class="field">
+        <span>العنوان</span>
+        <input name="title" required maxlength="200" placeholder="مثال: متابعة عرض السعر مع العميل" />
+      </label>
+      <div class="row gap">
+        <label class="field grow">
+          <span>التاريخ</span>
+          <input name="date" type="date" />
+        </label>
+        <label class="field grow">
+          <span>الوقت</span>
+          <input name="time" type="time" />
+        </label>
+      </div>
+      <div class="field">
+        <span>الأولوية</span>
+        <div class="seg" id="prio-seg">
+          <button type="button" class="seg-btn" data-prio="high">عالية</button>
+          <button type="button" class="seg-btn active" data-prio="medium">متوسطة</button>
+          <button type="button" class="seg-btn" data-prio="low">منخفضة</button>
+        </div>
+      </div>
+      <label class="field">
+        <span>ملاحظات</span>
+        <textarea name="notes" rows="3" placeholder="تفاصيل تساعد الذكاء الاصطناعي على صياغة رسالة أدق"></textarea>
+      </label>
+      <div class="row gap">
+        <label class="field grow">
+          <span>اسم المستلم (اختياري)</span>
+          <input name="contactName" />
+        </label>
+        <label class="field grow">
+          <span>بريد المستلم</span>
+          <input name="contactEmail" type="email" dir="ltr" />
+        </label>
+      </div>
+      <div class="row gap">
+        <button type="button" class="btn ghost grow" data-close>إلغاء</button>
+        <button type="submit" class="btn primary grow">حفظ</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Task detail + AI draft -->
+  <div class="sheet tall" id="sheet-detail" hidden role="dialog" aria-modal="true">
+    <div class="sheet-grip"></div>
+    <div id="detail-body"></div>
+  </div>
+
+  <!-- Consent -->
+  <div class="sheet" id="sheet-consent" hidden role="dialog" aria-modal="true">
+    <div class="sheet-grip"></div>
+    <h3>السماح بإرسال البريد نيابةً عنك؟</h3>
+    <ul class="bullets">
+      <li>تُرسَل الرسالة من خادم مُدير باسمك، وتصلك الردود مباشرة على بريدك.</li>
+      <li>ستراجع وتؤكّد كل رسالة قبل إرسالها — لا يوجد إرسال تلقائي.</li>
+      <li>يمكنك سحب الإذن في أي وقت من صفحة الحساب.</li>
+    </ul>
+    <label class="check">
+      <input type="checkbox" id="consent-check" />
+      <span>أوافق على أن يرسل مُدير الرسائل التي أؤكّدها باسمي.</span>
+    </label>
+    <div class="row gap">
+      <button type="button" class="btn ghost grow" data-close>ليس الآن</button>
+      <button type="button" class="btn primary grow" id="consent-accept" disabled>منح الإذن</button>
+    </div>
+  </div>
+
+  <!-- Confirm send -->
+  <div class="sheet" id="sheet-confirm" hidden role="dialog" aria-modal="true">
+    <div class="sheet-grip"></div>
+    <h3>تأكيد إرسال البريد</h3>
+    <div class="preview" id="confirm-preview"></div>
+    <div class="row gap">
+      <button type="button" class="btn ghost grow" data-close>تعديل</button>
+      <button type="button" class="btn primary grow" id="confirm-send">إرسال الآن</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

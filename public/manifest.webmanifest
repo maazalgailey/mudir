@@ -1,0 +1,11 @@
+{
+  "name": "مُدير",
+  "short_name": "مُدير",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f3ec",
+  "theme_color": "#0f5c4d",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
