@@ -5,27 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#191919" media="(prefers-color-scheme: dark)" />
-  <meta name="description" content="مُدير — مهامك ومواعيدك ورسائلك في مكان واحد. Mudir — tasks, calendar and AI-drafted email in one place." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="مُدير — تقويمك ومساعدك الصوتي لإرسال البريد. Mudir — your calendar and voice assistant for email." />
   <title>مُدير · Mudir</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <!-- Icon set -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
-      <symbol id="i-list" viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/></symbol>
       <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></symbol>
       <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m21.5 7.5-9.5 6-9.5-6"/></symbol>
       <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M11 3.5l1.8 4.8 4.8 1.8-4.8 1.8L11 16.7l-1.8-4.8-4.8-1.8 4.8-1.8z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></symbol>
-      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
       <symbol id="i-chev" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
       <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"/></symbol>
       <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
@@ -40,12 +43,11 @@
       <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></symbol>
       <symbol id="i-crown" viewBox="0 0 24 24"><path d="m3 7.5 4.5 4 4.5-7 4.5 7 4.5-4-2 11.5H5z"/></symbol>
       <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
-      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
-      <symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></symbol>
-      <symbol id="i-rows" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
       <symbol id="i-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></symbol>
-      <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></symbol>
-      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></symbol>
+      <symbol id="i-siri" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M5 12c1.5-3 2.5-3 3.5 0s2 3 3.5 0 2-3 3.5 0 2 3 3.5 0"/></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+      <symbol id="i-google" viewBox="0 0 24 24"><path fill="#4285F4" stroke="none" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.4h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.3-4.7 3.3-8.1z"/><path fill="#34A853" stroke="none" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" stroke="none" d="M5.8 14.2a6.6 6.6 0 0 1 0-4.3V7.1H2.1a11 11 0 0 0 0 9.9z"/><path fill="#EA4335" stroke="none" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></symbol>
     </defs>
   </svg>
 
@@ -56,11 +58,10 @@
       <div class="hero-copy">
         <h1 data-i18n="heroTitle"></h1>
         <p data-i18n="heroText"></p>
-        <ul class="hero-points">
-          <li><span class="hp-icon"><svg class="ic"><use href="#i-calendar"/></svg></span><span data-i18n="heroP1"></span></li>
-          <li><span class="hp-icon"><svg class="ic"><use href="#i-sparkle"/></svg></span><span data-i18n="heroP2"></span></li>
-          <li><span class="hp-icon"><svg class="ic"><use href="#i-send"/></svg></span><span data-i18n="heroP3"></span></li>
-        </ul>
+        <div class="hero-demo">
+          <div class="bubble me" data-i18n="heroDemoMe"></div>
+          <div class="bubble mudir"><svg class="ic"><use href="#i-sparkle"/></svg><span data-i18n="heroDemoMudir"></span></div>
+        </div>
       </div>
     </div>
     <div class="auth-panel">
@@ -70,6 +71,9 @@
           <h2 data-i18n="welcome"></h2>
           <p class="muted" data-i18n="welcomeSub"></p>
         </div>
+        <a class="btn google xl block" id="google-login" href="/api/auth/google" hidden><svg class="ic g"><use href="#i-google"/></svg><span data-i18n="continueGoogle"></span></a>
+        <p class="muted small center" id="google-note" data-i18n="googleNote" hidden></p>
+        <div class="divider" id="auth-divider" hidden><span data-i18n="orEmail"></span></div>
         <div class="seg" role="tablist">
           <button type="button" class="seg-btn active" data-auth="login" data-i18n="login"></button>
           <button type="button" class="seg-btn" data-auth="register" data-i18n="register"></button>
@@ -98,193 +102,184 @@
   <div id="app" class="shell" hidden>
     <aside class="sidebar">
       <div class="brand"><img src="/icon.svg" alt="" width="34" height="34" /><span data-i18n="brand"></span></div>
-      <button class="btn primary block" type="button" data-new-task><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="newTask"></span></button>
+      <button class="ask-btn" type="button" data-ask><svg class="ic"><use href="#i-mic"/></svg><span data-i18n="askMudir"></span></button>
       <nav class="side-nav">
-        <button class="nav-item" data-view="tasks"><svg class="ic"><use href="#i-list"/></svg><span data-i18n="navTasks"></span><span class="nav-count" id="nav-count"></span></button>
         <button class="nav-item" data-view="calendar"><svg class="ic"><use href="#i-calendar"/></svg><span data-i18n="navCalendar"></span></button>
-        <button class="nav-item" data-view="emails"><svg class="ic"><use href="#i-mail"/></svg><span data-i18n="navEmails"></span></button>
-        <button class="nav-item" data-view="account"><svg class="ic"><use href="#i-user"/></svg><span data-i18n="navAccount"></span></button>
+        <button class="nav-item" data-view="people"><svg class="ic"><use href="#i-users"/></svg><span data-i18n="navPeople"></span></button>
+        <button class="nav-item" data-view="settings"><svg class="ic"><use href="#i-settings"/></svg><span data-i18n="navSettings"></span></button>
       </nav>
       <div class="side-foot">
-        <div class="plan-mini" id="plan-mini"></div>
         <button type="button" class="lang-btn" data-lang-toggle><svg class="ic"><use href="#i-globe"/></svg><span></span></button>
       </div>
     </aside>
 
     <div class="main-col">
-      <header class="topbar">
-        <div class="topbar-text">
-          <p class="eyebrow" id="today-label"></p>
-          <h1 id="hello"></h1>
-        </div>
-        <div class="topbar-actions">
-          <button type="button" class="lang-btn compact" data-lang-toggle><svg class="ic"><use href="#i-globe"/></svg><span></span></button>
-          <span class="plan-badge" id="plan-badge"></span>
-        </div>
-      </header>
-
       <main>
-        <!-- Tasks -->
-        <section class="view" id="view-tasks">
-          <div class="stats" id="stats"></div>
-          <div class="toolbar">
-            <div class="chips" id="task-filters" role="tablist">
-              <button class="chip active" data-filter="today" data-i18n="fToday"></button>
-              <button class="chip" data-filter="upcoming" data-i18n="fUpcoming"></button>
-              <button class="chip" data-filter="overdue" data-i18n="fOverdue"></button>
-              <button class="chip" data-filter="all" data-i18n="fAll"></button>
-              <button class="chip" data-filter="done" data-i18n="fDone"></button>
+        <!-- Calendar (home) -->
+        <section class="view" id="view-calendar">
+          <header class="cal-top">
+            <div>
+              <p class="eyebrow" id="hello"></p>
+              <h1 id="cal-title"></h1>
             </div>
-            <div class="toolbar-actions">
-              <label class="search">
-                <svg class="ic"><use href="#i-search"/></svg>
-                <input id="search" type="search" autocomplete="off" data-i18n-ph="searchPh" />
-                <kbd class="kbd">Ctrl K</kbd>
-              </label>
-              <div class="seg mini" id="layout-seg">
-                <button type="button" class="seg-btn" data-layout="list" data-i18n-aria="viewList"><svg class="ic"><use href="#i-rows"/></svg></button>
-                <button type="button" class="seg-btn" data-layout="board" data-i18n-aria="viewBoard"><svg class="ic"><use href="#i-board"/></svg></button>
-              </div>
-              <button class="ai-btn" id="ai-plan-btn" type="button">
-                <svg class="ic"><use href="#i-sparkle"/></svg>
-                <span data-i18n="aiPlan"></span>
-                <span class="pro-tag">PRO</span>
-              </button>
+            <div class="cal-controls">
+              <button class="icon-btn lg" id="cal-prev" data-i18n-aria="prevMonth"><svg class="ic flip-rtl"><use href="#i-chev"/></svg></button>
+              <button class="btn ghost" id="cal-today" data-i18n="today"></button>
+              <button class="icon-btn lg" id="cal-next" data-i18n-aria="nextMonth"><svg class="ic flip-rtl mirror"><use href="#i-chev"/></svg></button>
+              <a class="icon-btn lg" href="/api/calendar.ics" download data-i18n-aria="exportCal" data-i18n-title="exportCal"><svg class="ic"><use href="#i-download"/></svg></a>
             </div>
-          </div>
-          <div id="plan-result"></div>
-          <ul class="task-list" id="task-list"></ul>
-          <div class="board" id="board" hidden></div>
-        </section>
-
-        <!-- Calendar -->
-        <section class="view" id="view-calendar" hidden>
-          <div class="cal-layout">
-            <div class="card cal-card">
-              <div class="cal-head">
-                <button class="icon-btn" id="cal-prev" data-i18n-aria="prevMonth"><svg class="ic flip-rtl"><use href="#i-chev"/></svg></button>
-                <h2 id="cal-title"></h2>
-                <button class="icon-btn" id="cal-next" data-i18n-aria="nextMonth"><svg class="ic flip-rtl mirror"><use href="#i-chev"/></svg></button>
-              </div>
-              <div class="cal-grid cal-week" id="cal-week"></div>
-              <div class="cal-grid" id="cal-grid"></div>
-            </div>
-            <div class="cal-side">
-              <div class="section-head">
-                <h3 id="cal-day-title"></h3>
-                <button class="btn ghost sm" id="cal-add"><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="addForDay"></span></button>
-              </div>
-              <ul class="task-list" id="cal-day-list"></ul>
-              <a class="btn ghost block" href="/api/calendar.ics" download><svg class="ic"><use href="#i-download"/></svg><span data-i18n="exportCal"></span></a>
-              <p class="muted small center" data-i18n="exportNote"></p>
-            </div>
+          </header>
+          <button class="ask-bar" type="button" data-ask>
+            <span class="ask-orb"><svg class="ic"><use href="#i-mic"/></svg></span>
+            <span class="ask-text"><strong data-i18n="askMudir"></strong><small data-i18n="askHint"></small></span>
+          </button>
+          <div class="calendar">
+            <div class="cal-grid cal-week" id="cal-week"></div>
+            <div class="cal-grid cal-days" id="cal-grid"></div>
           </div>
         </section>
 
-        <!-- Emails -->
-        <section class="view" id="view-emails" hidden>
-          <div class="section-head"><h2 data-i18n="sentTitle"></h2></div>
-          <ul class="email-list" id="email-list"></ul>
+        <!-- People -->
+        <section class="view" id="view-people" hidden>
+          <header class="page-head">
+            <h1 data-i18n="navPeople"></h1>
+            <div class="row gap">
+              <button class="btn ghost lg" id="people-import"><svg class="ic"><use href="#i-upload"/></svg><span data-i18n="importList"></span></button>
+              <button class="btn primary lg" id="people-add"><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="addPerson"></span></button>
+            </div>
+          </header>
+          <div id="people-list" class="stack"></div>
         </section>
 
-        <!-- Account -->
-        <section class="view" id="view-account" hidden>
-          <div class="account-grid">
+        <!-- Settings -->
+        <section class="view" id="view-settings" hidden>
+          <header class="page-head"><h1 data-i18n="navSettings"></h1></header>
+          <div class="settings-grid">
             <div class="card profile-card">
               <div class="avatar" id="acc-avatar"></div>
               <div class="grow">
                 <p id="acc-name" class="strong"></p>
                 <p id="acc-email" class="muted small" dir="ltr"></p>
               </div>
-              <button class="btn ghost sm danger-text" id="logout"><svg class="ic"><use href="#i-logout"/></svg><span data-i18n="logout"></span></button>
+              <button class="btn ghost danger-text" id="logout"><svg class="ic"><use href="#i-logout"/></svg><span data-i18n="logout"></span></button>
             </div>
             <div class="card" id="gmail-card"></div>
-            <div class="card" id="plan-card"></div>
-            <div class="card">
-              <h3 class="card-title" data-i18n="usageTitle"></h3>
-              <div id="usage"></div>
-            </div>
+            <div class="card" id="siri-card"></div>
             <div class="card">
               <h3 class="card-title" data-i18n="language"></h3>
-              <div class="seg" id="lang-seg">
+              <div class="seg big" id="lang-seg">
                 <button type="button" class="seg-btn" data-set-lang="ar">العربية</button>
                 <button type="button" class="seg-btn" data-set-lang="en">English</button>
               </div>
+            </div>
+            <div class="card" id="plan-card"></div>
+            <div class="card">
+              <details class="history">
+                <summary><span class="card-title row gap"><svg class="ic"><use href="#i-history"/></svg><span data-i18n="sentHistory"></span></span></summary>
+                <ul class="email-list" id="email-list"></ul>
+              </details>
             </div>
           </div>
         </section>
       </main>
     </div>
 
-    <button class="fab" type="button" data-new-task data-i18n-aria="newTask"><svg class="ic"><use href="#i-plus"/></svg></button>
+    <button class="fab" type="button" data-ask data-i18n-aria="askMudir"><svg class="ic"><use href="#i-mic"/></svg></button>
 
     <nav class="tabbar">
-      <button class="tab" data-view="tasks"><svg class="ic"><use href="#i-list"/></svg><span data-i18n="navTasks"></span></button>
       <button class="tab" data-view="calendar"><svg class="ic"><use href="#i-calendar"/></svg><span data-i18n="navCalendar"></span></button>
-      <button class="tab" data-view="emails"><svg class="ic"><use href="#i-mail"/></svg><span data-i18n="navEmails"></span></button>
-      <button class="tab" data-view="account"><svg class="ic"><use href="#i-user"/></svg><span data-i18n="navAccount"></span></button>
+      <button class="tab" data-view="people"><svg class="ic"><use href="#i-users"/></svg><span data-i18n="navPeople"></span></button>
+      <button class="tab" data-view="settings"><svg class="ic"><use href="#i-settings"/></svg><span data-i18n="navSettings"></span></button>
     </nav>
   </div>
 
   <!-- ===== Sheets ===== -->
   <div class="backdrop" id="backdrop" hidden></div>
 
-  <div class="sheet" id="sheet-edit" hidden role="dialog" aria-modal="true" aria-labelledby="edit-title">
+  <!-- Ask Mudir -->
+  <div class="sheet assistant" id="sheet-assistant" hidden role="dialog" aria-modal="true" aria-labelledby="as-title">
     <div class="sheet-grip"></div>
     <div class="sheet-head">
-      <h3 id="edit-title"></h3>
-      <button class="icon-btn sm" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+      <h3 id="as-title" class="row gap"><span class="ask-orb sm"><svg class="ic"><use href="#i-sparkle"/></svg></span><span data-i18n="brand"></span></h3>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
-    <form id="edit-form" class="stack">
-      <label class="field">
-        <span data-i18n="fTitle"></span>
-        <input name="title" required maxlength="200" data-i18n-ph="titlePh" />
-      </label>
-      <div class="row gap">
-        <label class="field grow"><span data-i18n="fDate"></span><input name="date" type="date" /></label>
-        <label class="field grow"><span data-i18n="fTime"></span><input name="time" type="time" /></label>
-      </div>
-      <div class="field">
-        <span data-i18n="fPriority"></span>
-        <div class="seg" id="prio-seg">
-          <button type="button" class="seg-btn" data-prio="high"><i class="dot p-high"></i><span data-i18n="pHigh"></span></button>
-          <button type="button" class="seg-btn active" data-prio="medium"><i class="dot p-medium"></i><span data-i18n="pMedium"></span></button>
-          <button type="button" class="seg-btn" data-prio="low"><i class="dot p-low"></i><span data-i18n="pLow"></span></button>
-        </div>
-      </div>
-      <label class="field">
-        <span data-i18n="fNotes"></span>
-        <textarea name="notes" rows="3" data-i18n-ph="notesPh"></textarea>
-      </label>
-      <div class="row gap wrap">
-        <label class="field grow"><span data-i18n="fContactName"></span><input name="contactName" /></label>
-        <label class="field grow"><span data-i18n="fContactEmail"></span><input name="contactEmail" type="email" dir="ltr" /></label>
-      </div>
-      <div class="row gap sheet-actions">
-        <button type="button" class="btn ghost grow" data-close data-i18n="cancel"></button>
-        <button type="submit" class="btn primary grow" data-i18n="save"></button>
-      </div>
+    <div class="as-thread" id="as-thread"></div>
+    <div class="as-examples" id="as-examples"></div>
+    <form class="as-bar" id="as-form">
+      <button type="button" class="mic-btn" id="as-mic" data-i18n-aria="speak"><svg class="ic"><use href="#i-mic"/></svg></button>
+      <input id="as-input" autocomplete="off" data-i18n-ph="askPh" />
+      <button type="submit" class="go-btn" data-i18n-aria="sendCommand"><svg class="ic flip-rtl mirror"><use href="#i-arrow"/></svg></button>
     </form>
   </div>
 
+  <!-- Day -->
+  <div class="sheet" id="sheet-day" hidden role="dialog" aria-modal="true" aria-labelledby="day-title">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 id="day-title"></h3>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <ul class="task-list" id="day-list"></ul>
+    <form class="add-row" id="day-add">
+      <input name="title" maxlength="200" data-i18n-ph="addTaskPh" required />
+      <input name="time" type="time" class="time-input" />
+      <button type="submit" class="go-btn" data-i18n-aria="add"><svg class="ic"><use href="#i-plus"/></svg></button>
+    </form>
+  </div>
+
+  <!-- Task page -->
   <div class="sheet drawer" id="sheet-detail" hidden role="dialog" aria-modal="true">
     <div class="sheet-grip"></div>
     <div id="detail-body"></div>
   </div>
 
+  <!-- Confirm send (task drafts) -->
   <div class="sheet" id="sheet-confirm" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="sheet-grip"></div>
     <div class="sheet-head">
       <h3 id="confirm-title" data-i18n="confirmTitle"></h3>
-      <button class="icon-btn sm" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="preview" id="confirm-preview"></div>
     <div class="row gap sheet-actions">
-      <button type="button" class="btn ghost grow" data-back-detail data-i18n="editDraft"></button>
-      <button type="button" class="btn primary grow" id="confirm-send"><svg class="ic"><use href="#i-send"/></svg><span data-i18n="sendNow"></span></button>
+      <button type="button" class="btn ghost grow lg" data-back-detail data-i18n="editDraft"></button>
+      <button type="button" class="btn primary grow lg" id="confirm-send"><svg class="ic"><use href="#i-send"/></svg><span data-i18n="sendNow"></span></button>
     </div>
   </div>
 
+  <!-- Person -->
+  <div class="sheet" id="sheet-person" hidden role="dialog" aria-modal="true" aria-labelledby="person-title">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 id="person-title"></h3>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <form id="person-form" class="stack">
+      <label class="field"><span data-i18n="name"></span><input name="name" required maxlength="120" /></label>
+      <label class="field"><span data-i18n="email"></span><input name="email" type="email" dir="ltr" required /></label>
+      <label class="field"><span data-i18n="group"></span><input name="group" list="group-options" maxlength="60" data-i18n-ph="groupPh" /></label>
+      <div class="row gap sheet-actions">
+        <button type="button" class="btn ghost lg danger-text" id="person-delete" hidden><svg class="ic"><use href="#i-trash"/></svg></button>
+        <button type="submit" class="btn primary grow lg" data-i18n="save"></button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Import -->
+  <div class="sheet" id="sheet-import" hidden role="dialog" aria-modal="true" aria-labelledby="import-title">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 id="import-title" data-i18n="importList"></h3>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <form id="import-form" class="stack">
+      <label class="field"><span data-i18n="importHelp"></span><textarea name="text" rows="7" dir="ltr" placeholder="Sara Ahmed, sara@company.com&#10;Omar Ali, omar@company.com"></textarea></label>
+      <label class="field"><span data-i18n="group"></span><input name="group" list="group-options" maxlength="60" data-i18n-ph="groupPh" /></label>
+      <button type="submit" class="btn primary block lg" data-i18n="importBtn"></button>
+    </form>
+  </div>
+
+  <datalist id="group-options"></datalist>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="/app.js"></script>

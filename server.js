@@ -53,7 +53,13 @@ const MSG = {
     taskNotFound: 'المهمة غير موجودة',
     titleRequired: 'عنوان المهمة مطلوب',
     needDate: 'حدّد تاريخًا للمهمة أولًا',
-    draftLimit: 'وصلت إلى حد {limit} صياغات هذا الشهر. اشترك في الباقة الاحترافية للمزيد.',
+    draftLimit: 'وصلت إلى الحد الشهري للباقة المجانية. اشترك في مُدير برو للاستمرار.',
+    assistantEmpty: 'قل أو اكتب ما تريد',
+    sendPartial: 'أُرسلت {sent} من {total} رسائل، ثم حدث خطأ.',
+    tooManyRecipients: 'يمكن الإرسال إلى {max} شخصًا كحد أقصى في المرة الواحدة.',
+    noRecipients: 'أضف مستلمًا واحدًا على الأقل',
+    contactNotFound: 'جهة الاتصال غير موجودة',
+    googleLoginFailed: 'تعذّر تسجيل الدخول عبر Google، حاول مرة أخرى.',
     aiUnavailable: 'تعذّر الاتصال بخدمة الذكاء الاصطناعي',
     proOnly: 'ترتيب الأولويات الذكي متاح في الباقة الاحترافية.',
     noOpenTasks: 'لا توجد مهام مفتوحة. أحسنت!',
@@ -61,12 +67,12 @@ const MSG = {
     reasonOverdue: 'متأخرة عن موعدها',
     reasonHigh: 'أولوية عالية',
     reasonDate: 'حسب الموعد',
-    gmailNotConnected: 'اربط حساب Gmail من صفحة الحساب لإرسال البريد مباشرة.',
-    gmailReconnect: 'انتهت صلاحية ربط Gmail. يرجى ربطه من جديد من صفحة الحساب.',
+    gmailNotConnected: 'اربط حساب Gmail من الإعدادات لإرسال البريد مباشرة.',
+    gmailReconnect: 'انتهت صلاحية ربط Gmail. يرجى ربطه من جديد من الإعدادات.',
     confirmRequired: 'يجب تأكيد الإرسال',
     recipientInvalid: 'بريد المستلم غير صالح',
     subjectBodyRequired: 'العنوان والنص مطلوبان',
-    emailLimit: 'وصلت إلى حد {limit} رسالة بريد هذا الشهر.',
+    emailLimit: 'وصلت إلى الحد الشهري للرسائل في باقتك. اشترك في مُدير برو للاستمرار.',
     sendFailed: 'تعذّر إرسال البريد، حاول مرة أخرى.',
     gmailOff: 'الإرسال عبر Gmail غير مفعّل على الخادم بعد.',
     billingOff: 'الدفع غير مفعّل على الخادم بعد.',
@@ -87,7 +93,13 @@ const MSG = {
     taskNotFound: 'Task not found',
     titleRequired: 'Task title is required',
     needDate: 'Set a date for this task first',
-    draftLimit: "You've used all {limit} drafts this month. Upgrade to Pro for more.",
+    draftLimit: "You've reached this month's free limit. Upgrade to Mudir Pro to keep going.",
+    assistantEmpty: 'Say or type what you need',
+    sendPartial: 'Sent {sent} of {total} emails, then something went wrong.',
+    tooManyRecipients: 'You can send to at most {max} people at once.',
+    noRecipients: 'Add at least one recipient',
+    contactNotFound: 'Contact not found',
+    googleLoginFailed: "Couldn't sign in with Google. Please try again.",
     aiUnavailable: "Couldn't reach the AI service",
     proOnly: 'Smart prioritization is a Pro feature.',
     noOpenTasks: 'No open tasks. Nice work!',
@@ -95,12 +107,12 @@ const MSG = {
     reasonOverdue: 'Overdue',
     reasonHigh: 'High priority',
     reasonDate: 'By due date',
-    gmailNotConnected: 'Connect your Gmail on the Account page to send email directly.',
-    gmailReconnect: 'Your Gmail connection expired. Please reconnect it on the Account page.',
+    gmailNotConnected: 'Connect your Gmail in Settings to send email directly.',
+    gmailReconnect: 'Your Gmail connection expired. Please reconnect it in Settings.',
     confirmRequired: 'Sending must be confirmed',
     recipientInvalid: "The recipient's email is not valid",
     subjectBodyRequired: 'Subject and message are required',
-    emailLimit: "You've reached {limit} emails this month.",
+    emailLimit: "You've reached your plan's monthly email limit. Upgrade to Mudir Pro to keep going.",
     sendFailed: "Couldn't send the email. Please try again.",
     gmailOff: 'Sending through Gmail is not enabled on the server yet.',
     billingOff: 'Payments are not enabled on the server yet.',
@@ -123,10 +135,12 @@ function msg(req, key, vars = {}) {
 }
 
 // ---------- Plans ----------
+// Fair-use caps, never shown in the UI; they only protect the OpenAI and Gmail quotas.
 const PLANS = {
-  free: { aiDrafts: 10, emails: 20, aiPlan: false },
-  pro: { aiDrafts: 500, emails: 1000, aiPlan: true },
+  free: { aiDrafts: 150, emails: 300, aiPlan: false },
+  pro: { aiDrafts: 3000, emails: 5000, aiPlan: true },
 };
+const MAX_RECIPIENTS = 100;
 
 function monthKey() {
   return new Date().toISOString().slice(0, 7);
@@ -138,8 +152,8 @@ function usage(user) {
     : { aiDrafts: 0, emails: 0 };
 }
 
-// Atomically counts one use, resetting both counters when a new month starts.
-async function bumpUsage(userId, field) {
+// Atomically counts uses, resetting both counters when a new month starts.
+async function bumpUsage(userId, field, n = 1) {
   const ai = field === 'ai';
   return one(
     `UPDATE users SET
@@ -147,7 +161,7 @@ async function bumpUsage(userId, field) {
        usage_emails = CASE WHEN usage_month = $2 THEN usage_emails ELSE 0 END + $4,
        usage_month = $2
      WHERE id = $1 RETURNING *`,
-    [userId, monthKey(), ai ? 1 : 0, ai ? 0 : 1],
+    [userId, monthKey(), ai ? n : 0, ai ? 0 : n],
   );
 }
 
@@ -406,6 +420,68 @@ app.delete('/api/tasks/:id', auth, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- People ----------
+function contactOut(r) {
+  return { id: r.id, name: r.name, email: r.email, group: r.group_name };
+}
+
+function cleanContact(body) {
+  return {
+    name: String(body.name || '').trim().slice(0, 120),
+    email: String(body.email || '').trim().toLowerCase().slice(0, 200),
+    group: String(body.group || '').trim().slice(0, 60),
+  };
+}
+
+app.get('/api/contacts', auth, h(async (req, res) => {
+  const rows = await query('SELECT * FROM contacts WHERE user_id = $1 ORDER BY group_name, name', [req.user.id]);
+  res.json({ contacts: rows.map(contactOut) });
+}));
+
+app.post('/api/contacts', auth, h(async (req, res) => {
+  const c = cleanContact(req.body);
+  if (!c.name) return fail(res, 400, msg(req, 'nameRequired'));
+  if (!EMAIL_RE.test(c.email)) return fail(res, 400, msg(req, 'invalidEmail'));
+  const row = await one('INSERT INTO contacts (id, user_id, name, email, group_name) VALUES ($1, $2, $3, $4, $5) RETURNING *', [
+    id(), req.user.id, c.name, c.email, c.group,
+  ]);
+  res.json({ contact: contactOut(row) });
+}));
+
+// Paste a list: one person per line as "Name, email" (or just an email).
+app.post('/api/contacts/import', auth, h(async (req, res) => {
+  const group = String(req.body.group || '').trim().slice(0, 60);
+  const existing = new Set((await query('SELECT email FROM contacts WHERE user_id = $1', [req.user.id])).map((r) => r.email));
+  const added = [];
+  for (const line of String(req.body.text || '').split(/\r?\n/).slice(0, 500)) {
+    const email = (line.match(/[^\s,;<>]+@[^\s,;<>]+\.[^\s,;<>]+/) || [])[0]?.toLowerCase();
+    if (!email || existing.has(email)) continue;
+    const name = line.replace(email, '').replace(/[<>,;\t]+/g, ' ').trim() || email.split('@')[0];
+    existing.add(email);
+    added.push(await one('INSERT INTO contacts (id, user_id, name, email, group_name) VALUES ($1, $2, $3, $4, $5) RETURNING *', [
+      id(), req.user.id, name.slice(0, 120), email, group,
+    ]));
+  }
+  res.json({ added: added.map(contactOut) });
+}));
+
+app.patch('/api/contacts/:id', auth, h(async (req, res) => {
+  const c = cleanContact(req.body);
+  if (!c.name) return fail(res, 400, msg(req, 'nameRequired'));
+  if (!EMAIL_RE.test(c.email)) return fail(res, 400, msg(req, 'invalidEmail'));
+  const row = await one('UPDATE contacts SET name = $3, email = $4, group_name = $5 WHERE id = $1 AND user_id = $2 RETURNING *', [
+    req.params.id, req.user.id, c.name, c.email, c.group,
+  ]);
+  if (!row) return fail(res, 404, msg(req, 'contactNotFound'));
+  res.json({ contact: contactOut(row) });
+}));
+
+app.delete('/api/contacts/:id', auth, h(async (req, res) => {
+  const rows = await query('DELETE FROM contacts WHERE id = $1 AND user_id = $2 RETURNING id', [req.params.id, req.user.id]);
+  if (!rows.length) return fail(res, 404, msg(req, 'contactNotFound'));
+  res.json({ ok: true });
+}));
+
 // ---------- Calendar (.ics) ----------
 function icsEscape(s) {
   return String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, (m) => '\\' + m);
@@ -576,6 +652,126 @@ app.post('/api/ai/plan', auth, h(async (req, res) => {
   }
 }));
 
+// ---------- Ask Mudir (voice / text assistant) ----------
+// The assistant only prepares: emails come back as drafts the user reviews and sends.
+const normalize = (s) =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/[ً-ْـ]/g, '') // Arabic diacritics and tatweel
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي');
+
+// Loose match for group names across Arabic/English forms ("الموظفون" ~ "موظفيني", "Employees" ~ "employee").
+function mentionsGroup(text, group) {
+  const g = normalize(group).replace(/^ال/, '').trim();
+  if (!g) return false;
+  const stem = g.length > 4 ? g.slice(0, Math.max(4, g.length - 2)) : g;
+  return normalize(text).includes(stem);
+}
+
+function fallbackAssistant(text, contacts, tasks, lang, sender, today) {
+  const isAr = lang === 'ar';
+  if (/(email|e-mail|mail|message|send|write to|ايميل|إيميل|بريد|رساله|رسالة|ارسل|أرسل|راسل)/i.test(text)) {
+    const groups = [...new Set(contacts.map((c) => c.group_name).filter(Boolean))].filter((g) => mentionsGroup(text, g));
+    const named = contacts.filter((c) => normalize(text).includes(normalize(c.name.split(' ')[0])) && c.name.length > 1);
+    const ids = new Set([...contacts.filter((c) => groups.includes(c.group_name)), ...named].map((c) => c.id));
+    const n = ids.size;
+    return {
+      action: 'email',
+      reply: isAr ? `جهّزت الرسالة إلى ${n} ${n === 1 ? 'شخص' : 'أشخاص'}. هل أرسلها؟` : `The email to ${n} ${n === 1 ? 'person' : 'people'} is ready. Should I send it?`,
+      email: {
+        recipients: [...ids],
+        subject: isAr ? `رسالة من ${sender}` : `A message from ${sender}`,
+        body: isAr ? `السلام عليكم،\n\n${text}\n\nمع التحية،\n${sender}` : `Hello,\n\n${text}\n\nBest regards,\n${sender}`,
+      },
+    };
+  }
+  if (/(remind|task|todo|meeting|appointment|add|ذكرني|مهمه|مهمة|موعد|اجتماع|اضف|أضف)/i.test(text)) {
+    return { action: 'task', reply: isAr ? 'أضفت المهمة إلى تقويمك.' : 'Added to your calendar.', task: { title: text.slice(0, 200), date: today, time: '' } };
+  }
+  const upcoming = tasks.filter((t) => t.date >= today).slice(0, 5);
+  return {
+    action: 'answer',
+    reply: upcoming.length
+      ? (isAr ? 'القادم في تقويمك: ' : 'Coming up: ') + upcoming.map((t) => `${t.title} (${t.date})`).join('، ')
+      : isAr ? 'تقويمك فارغ في الأيام القادمة.' : 'Your calendar is clear for the coming days.',
+  };
+}
+
+app.post('/api/assistant', auth, h(async (req, res) => {
+  const text = String(req.body.text || '').trim().slice(0, 1000);
+  if (!text) return fail(res, 400, msg(req, 'assistantEmpty'));
+  if (usage(req.user).aiDrafts >= PLANS[req.user.plan].aiDrafts) return fail(res, 402, msg(req, 'draftLimit'));
+  const lang = langOf(req);
+  const today = DATE_RE.test(req.body.today) ? req.body.today : new Date().toISOString().slice(0, 10);
+  const contacts = await query('SELECT id, name, email, group_name FROM contacts WHERE user_id = $1 ORDER BY name LIMIT 500', [req.user.id]);
+  const tasks = (await query(
+    `SELECT * FROM tasks WHERE user_id = $1 AND NOT done AND date >= $2 ORDER BY date, time LIMIT 60`,
+    [req.user.id, today],
+  )).map(taskOut);
+
+  let out;
+  if (openaiEnabled) {
+    const system =
+      'You are Mudir (مُدير), the voice assistant inside a calendar and email app. Interpret the command and return JSON only:\n' +
+      '{"action":"email"|"task"|"answer","reply":string,' +
+      '"email":{"recipients":[contact ids],"addresses":[email addresses said explicitly],"unmatched":[names or groups you could not find],"subject":string,"body":string},' +
+      '"task":{"title":string,"date":"YYYY-MM-DD" or "","time":"HH:MM" or ""}}\n' +
+      'Rules:\n' +
+      '- "email" when the user wants to email or message people. Pick recipients from the contacts by name or group; a group (e.g. "employees", "الموظفين", "my team") means every contact in that group. Match across Arabic and English, singular and plural, and with or without "my".\n' +
+      '- Write the subject and body in the language of the command unless told otherwise: warm, clear, professional, ready to send, signed with the sender name. Do not invent facts; use placeholders like [date] only if essential.\n' +
+      '- "reply" is one short spoken-style sentence in the UI language. For emails, say who it is for and end by asking whether to send it.\n' +
+      '- "task" when the user wants a reminder, task or appointment. Resolve relative dates from today.\n' +
+      '- "answer" for questions about their schedule; answer briefly from the tasks.';
+    const prompt = JSON.stringify({
+      command: text,
+      today,
+      uiLanguage: lang === 'en' ? 'English' : 'Arabic',
+      sender: req.user.name,
+      contacts: contacts.map((c) => ({ id: c.id, name: c.name, group: c.group_name })),
+      upcomingTasks: tasks.map((t) => ({ title: t.title, date: t.date, time: t.time })),
+    });
+    try {
+      out = await openaiJSON(system, prompt);
+    } catch {
+      return fail(res, 502, msg(req, 'aiUnavailable'));
+    }
+  } else {
+    out = fallbackAssistant(text, contacts, tasks, lang, req.user.name, today);
+  }
+
+  const action = ['email', 'task', 'answer'].includes(out.action) ? out.action : 'answer';
+  const result = { action, reply: String(out.reply || '').slice(0, 600) };
+
+  if (action === 'email') {
+    const ids = new Set(Array.isArray(out.email?.recipients) ? out.email.recipients : []);
+    const picked = contacts.filter((c) => ids.has(c.id)).map((c) => ({ name: c.name, email: c.email }));
+    const extra = (Array.isArray(out.email?.addresses) ? out.email.addresses : [])
+      .map((a) => String(a).trim().toLowerCase())
+      .filter((a) => EMAIL_RE.test(a) && !picked.some((p) => p.email === a))
+      .map((a) => ({ name: a, email: a }));
+    result.email = {
+      recipients: [...picked, ...extra],
+      unmatched: (Array.isArray(out.email?.unmatched) ? out.email.unmatched : []).map(String).slice(0, 10),
+      subject: String(out.email?.subject || '').slice(0, 300),
+      body: String(out.email?.body || '').slice(0, 10000),
+    };
+  } else if (action === 'task') {
+    const title = String(out.task?.title || text).trim().slice(0, 200);
+    const date = DATE_RE.test(out.task?.date) ? out.task.date : '';
+    const time = TIME_RE.test(out.task?.time) ? out.task.time : '';
+    const row = await one(
+      `INSERT INTO tasks (id, user_id, title, date, time) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [id(), req.user.id, title, date, time],
+    );
+    result.task = taskOut(row);
+  }
+
+  result.user = publicUser(await bumpUsage(req.user.id, 'ai'));
+  res.json(result);
+}));
+
 // ---------- Gmail (send from the signed-in user's own account) ----------
 // Refresh tokens are stored encrypted with a key derived from the session secret.
 async function tokenKey() {
@@ -596,33 +792,51 @@ async function decrypt(blob) {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
 
-app.get('/api/google/connect', auth, h(async (req, res) => {
-  if (!googleEnabled) return fail(res, 400, msg(req, 'gmailOff'));
-  const state = jwt.sign({ sub: req.user.id, purpose: 'google' }, await getJwtSecret(), { expiresIn: '10m' });
+async function googleAuthUrl(state, { consent, loginHint } = {}) {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
     redirect_uri: GOOGLE_REDIRECT,
     response_type: 'code',
-    scope: `openid email ${GMAIL_SEND_SCOPE}`,
+    scope: `openid email profile ${GMAIL_SEND_SCOPE}`,
     access_type: 'offline',
-    prompt: 'consent',
-    state,
+    include_granted_scopes: 'true',
+    prompt: consent ? 'consent' : 'select_account',
+    state: jwt.sign(state, await getJwtSecret(), { expiresIn: '10m' }),
   });
-  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  if (loginHint) params.set('login_hint', loginHint);
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+// Connect Gmail to an existing signed-in account.
+app.get('/api/google/connect', auth, h(async (req, res) => {
+  if (!googleEnabled) return fail(res, 400, msg(req, 'gmailOff'));
+  res.redirect(await googleAuthUrl({ sub: req.user.id, purpose: 'google' }, { consent: true }));
+}));
+
+// "Continue with Google": signs in (or creates the account) and connects Gmail in one step.
+app.get('/api/auth/google', h(async (req, res) => {
+  if (!googleEnabled) return res.redirect('/');
+  const ask = String(req.query.ask || '').slice(0, 1000);
+  res.redirect(await googleAuthUrl({ purpose: 'login', ask }, { consent: req.query.consent === '1' }));
 }));
 
 app.get('/api/google/callback', h(async (req, res) => {
-  const back = (result) => res.redirect(`/?gmail=${result}#account`);
-  if (req.query.error) return back('denied');
-
-  const user = await sessionUser(req);
   let state;
   try {
     state = jwt.verify(String(req.query.state || ''), await getJwtSecret());
   } catch {
-    return back('error');
+    return res.redirect('/?gmail=error');
   }
-  if (!user || state.purpose !== 'google' || state.sub !== user.id) return back('error');
+  const isLogin = state.purpose === 'login';
+  const back = (result) =>
+    res.redirect(`/?gmail=${result}${isLogin && state.ask ? `&ask=${encodeURIComponent(state.ask)}` : ''}${isLogin ? '' : '#settings'}`);
+  if (req.query.error) return back(isLogin ? 'loginDenied' : 'denied');
+
+  let user = null;
+  if (!isLogin) {
+    user = await sessionUser(req);
+    if (!user || state.purpose !== 'google' || state.sub !== user.id) return back('error');
+  }
 
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -636,21 +850,46 @@ app.get('/api/google/callback', h(async (req, res) => {
     }),
   });
   const tokens = await r.json();
-  if (!r.ok || !tokens.refresh_token) {
+  if (!r.ok || !tokens.id_token) {
     console.error('Google token exchange failed', r.status, tokens.error, tokens.error_description);
     return back('error');
   }
-  // Google lets people untick individual permissions on the consent screen.
-  if (!String(tokens.scope || '').split(' ').includes(GMAIL_SEND_SCOPE)) return back('noscope');
-
   // The id_token comes straight from Google over TLS, so its payload can be read without re-verifying.
   const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString('utf8'));
-  await query('UPDATE users SET google_email = $2, google_refresh_token = $3 WHERE id = $1', [
-    user.id,
-    claims.email,
-    await encrypt(tokens.refresh_token),
-  ]);
-  back('connected');
+  // Google lets people untick individual permissions on the consent screen.
+  const canSend = String(tokens.scope || '').split(' ').includes(GMAIL_SEND_SCOPE);
+
+  if (isLogin) {
+    if (!claims.email || claims.email_verified === false) return back('error');
+    const email = claims.email.toLowerCase();
+    user = await one('SELECT * FROM users WHERE google_email = $1 OR email = $1 ORDER BY (google_email = $1) DESC LIMIT 1', [email]);
+    if (!user) {
+      // Google-only accounts get an unusable random password; they always sign in with Google.
+      user = await one(
+        `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING *`,
+        [id(), String(claims.name || email.split('@')[0]).slice(0, 80), email, await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10)],
+      );
+    }
+    // Returning users who granted access before get no new refresh token unless consent is asked again.
+    if (canSend && !tokens.refresh_token && !user.google_refresh_token) {
+      return res.redirect(`/api/auth/google?consent=1${state.ask ? `&ask=${encodeURIComponent(state.ask)}` : ''}`);
+    }
+    await setSession(res, user);
+  } else if (!tokens.refresh_token) {
+    console.error('Google returned no refresh token for connect');
+    return back('error');
+  }
+
+  if (!canSend) return back('noscope');
+  if (tokens.refresh_token) {
+    await query('UPDATE users SET google_email = $2, google_refresh_token = $3 WHERE id = $1', [
+      user.id,
+      claims.email,
+      await encrypt(tokens.refresh_token),
+    ]);
+  }
+  back(isLogin ? 'signedIn' : 'connected');
 }));
 
 app.post('/api/google/disconnect', auth, h(async (req, res) => {
@@ -734,45 +973,60 @@ app.post('/api/email/send', auth, h(async (req, res) => {
   if (!user.google_refresh_token) return fail(res, 403, msg(req, 'gmailNotConnected'));
   if (req.body.confirm !== true) return fail(res, 400, msg(req, 'confirmRequired'));
 
-  const to = String(req.body.to || '').trim();
+  // One address (`to`) or a group (`recipients`); each person gets their own copy.
+  const list = Array.isArray(req.body.recipients) ? req.body.recipients : [req.body.to];
+  const recipients = [...new Set(list.map((s) => String(s || '').trim().toLowerCase()).filter(Boolean))];
   const subject = String(req.body.subject || '').trim().slice(0, 300);
   const body = String(req.body.body || '').slice(0, 10000);
-  if (!EMAIL_RE.test(to)) return fail(res, 400, msg(req, 'recipientInvalid'));
+  if (!recipients.length) return fail(res, 400, msg(req, 'noRecipients'));
+  if (recipients.length > MAX_RECIPIENTS) return fail(res, 400, msg(req, 'tooManyRecipients', { max: MAX_RECIPIENTS }));
+  if (!recipients.every((r) => EMAIL_RE.test(r))) return fail(res, 400, msg(req, 'recipientInvalid'));
   if (!subject || !body.trim()) return fail(res, 400, msg(req, 'subjectBodyRequired'));
 
   const task = req.body.taskId ? await findTask(req.body.taskId, user.id) : null;
-  const limit = PLANS[user.plan].emails;
-  if (usage(user).emails >= limit) return fail(res, 402, msg(req, 'emailLimit', { limit }));
+  if (usage(user).emails + recipients.length > PLANS[user.plan].emails) return fail(res, 402, msg(req, 'emailLimit'));
 
+  const sent = [];
+  let failure = null;
   try {
     const accessToken = await gmailAccessToken(user);
-    const raw = Buffer.from(buildMime({ fromName: user.name, fromEmail: user.google_email, to, subject, text: body })).toString('base64url');
-    const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ raw }),
-    });
-    if (!r.ok) {
-      console.error('Gmail send failed', r.status, await r.text());
-      if (r.status === 401 || r.status === 403) throw new GmailAuthError();
-      throw new Error('send failed');
+    for (const to of recipients) {
+      const raw = Buffer.from(buildMime({ fromName: user.name, fromEmail: user.google_email, to, subject, text: body })).toString('base64url');
+      const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw }),
+      });
+      if (!r.ok) {
+        console.error('Gmail send failed', r.status, await r.text());
+        if (r.status === 401 || r.status === 403) throw new GmailAuthError();
+        throw new Error('send failed');
+      }
+      sent.push(to);
     }
   } catch (err) {
-    if (err instanceof GmailAuthError) {
-      await query('UPDATE users SET google_refresh_token = NULL WHERE id = $1', [user.id]);
-      return fail(res, 401, msg(req, 'gmailReconnect'));
-    }
-    console.error('Email error:', err.message);
-    return fail(res, 502, msg(req, 'sendFailed'));
+    failure = err;
   }
 
-  const row = await one(
-    `INSERT INTO emails (id, user_id, task_id, to_addr, subject, body, status) VALUES ($1, $2, $3, $4, $5, $6, 'sent') RETURNING *`,
-    [id(), user.id, task?.id || null, to, subject, body],
-  );
-  if (task) await query('UPDATE tasks SET last_email_at = $2 WHERE id = $1', [task.id, row.sent_at]);
-  const updated = await bumpUsage(user.id, 'email');
-  res.json({ email: emailOut(row), user: publicUser(updated) });
+  const rows = [];
+  for (const to of sent) {
+    rows.push(await one(
+      `INSERT INTO emails (id, user_id, task_id, to_addr, subject, body, status) VALUES ($1, $2, $3, $4, $5, $6, 'sent') RETURNING *`,
+      [id(), user.id, task?.id || null, to, subject, body],
+    ));
+  }
+  if (task && rows.length) await query('UPDATE tasks SET last_email_at = $2 WHERE id = $1', [task.id, rows[0].sent_at]);
+  const updated = sent.length ? await bumpUsage(user.id, 'email', sent.length) : user;
+
+  if (failure) {
+    if (failure instanceof GmailAuthError) {
+      await query('UPDATE users SET google_refresh_token = NULL WHERE id = $1', [user.id]);
+      return fail(res, 401, sent.length ? msg(req, 'sendPartial', { sent: sent.length, total: recipients.length }) : msg(req, 'gmailReconnect'));
+    }
+    console.error('Email error:', failure.message);
+    return fail(res, 502, sent.length ? msg(req, 'sendPartial', { sent: sent.length, total: recipients.length }) : msg(req, 'sendFailed'));
+  }
+  res.json({ sent: sent.length, email: emailOut(rows[0]), user: publicUser(updated) });
 }));
 
 app.get('/api/email/log', auth, h(async (req, res) => {
