@@ -674,7 +674,11 @@ app.post('/api/transcribe', auth, express.raw({ type: () => true, limit: '4mb' }
 
   // Saved names and groups as a spelling hint, so "سارة" and "Omar" come back spelled the way they are saved.
   const contacts = await query('SELECT name, group_name FROM contacts WHERE user_id = $1 LIMIT 200', [req.user.id]);
-  const hint = ['مُدير', 'Mudir', ...new Set(contacts.flatMap((c) => [c.name, c.group_name]).filter(Boolean))].join('، ').slice(0, 700);
+  const names = [...new Set(contacts.flatMap((c) => [c.name, c.group_name]).filter(Boolean))].join(', ');
+  const hint = (lang === 'ar'
+    ? `مُدير (Mudir) مساعد للبريد والتقويم.${names ? ` قد يذكر المتحدث هذه الأسماء بهذا الإملاء تمامًا: ${names}.` : ''}`
+    : `Mudir (مُدير) is an email and calendar assistant.${names ? ` The speaker may mention these names, spelled exactly like this: ${names}.` : ''}`
+  ).slice(0, 900);
 
   for (const model of TRANSCRIBE_MODELS) {
     const form = new FormData();
