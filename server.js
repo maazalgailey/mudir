@@ -813,7 +813,8 @@ app.post('/api/assistant', auth, h(async (req, res) => {
       'Rules:\n' +
       '- "email" when the user wants to email or message people. Pick recipients from the contacts by name or group; a group (e.g. "employees", "الموظفين", "my team") means every contact in that group. Match across Arabic and English, singular and plural, and with or without "my".\n' +
       '- Write the subject and body in the language of the command unless told otherwise: warm, clear, professional, ready to send, signed with the sender name. Do not invent facts; use placeholders like [date] only if essential.\n' +
-      '- "reply" is one short spoken-style sentence in the UI language. For emails, say who it is for and end by asking whether to send it.\n' +
+      '- "reply" is one short spoken-style sentence in the UI language. For emails, say who it is for and end by asking whether to send it. ' +
+      'Only name people who are actually in recipients; if anyone in "unmatched" was not found, say clearly that they are not in People yet.\n' +
       '- "task" when the user wants a reminder, task or appointment. Resolve relative dates from today.\n' +
       '- "answer" for questions about their schedule; answer briefly from the tasks.';
     const prompt = JSON.stringify({
