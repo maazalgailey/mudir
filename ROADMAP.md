@@ -66,7 +66,21 @@ Status as of 3 November 2026. Covers the "Mudir — Product Development Master B
 1. Trigger → condition → action engine (e.g. "when a client emails with 'invoice', create a task and notify me"), created in plain language, with run history, retries, pause/edit/delete.
 2. Organisations with roles (owner/admin/member), shared groups and team calendars.
 
-## 5. Approvals the owner must do
+## 5. WhatsApp
+
+- **Today:** People have mobile numbers; Mudir prepares WhatsApp/SMS messages and opens each chat with the text written (`wa.me` links). The user taps send in their own WhatsApp. No approval needed.
+- **Fully automatic sending** needs the **WhatsApp Business Platform (Cloud API)** from Meta: a Meta Business account with business verification, a dedicated phone number (not one already on the WhatsApp app), and pre-approved message templates for any message that starts a conversation. Meta charges per conversation. Worth it once Mudir sends on behalf of a business (reminders, confirmations); not needed for personal use.
+
+## 6. Outlook approval (Microsoft Graph), step by step
+
+1. **Register the app:** entra.microsoft.com → Identity → Applications → App registrations → New registration. Name `Mudir`; account types "Accounts in any organizational directory and personal Microsoft accounts"; redirect URI (Web) `https://<your-domain>/api/microsoft/callback`.
+2. **Secret:** Certificates & secrets → New client secret (note the expiry; renew before it lapses). Put the Application (client) ID and the secret in Vercel as `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`.
+3. **Permissions:** API permissions → Microsoft Graph → Delegated: `openid`, `profile`, `email`, `offline_access`, `User.Read`, `Mail.Send`, and later `Mail.ReadWrite`, `Calendars.ReadWrite`. These are user-consentable; no admin consent is needed for personal accounts.
+4. **Publisher domain:** Branding & properties → Publisher domain → verify your domain. Mudir serves `/.well-known/microsoft-identity-association.json` automatically once `MICROSOFT_CLIENT_ID` is set.
+5. **Publisher verification (the "approval"):** join the free Microsoft AI Cloud Partner Program to get a Partner ID, complete its business verification, then add the Partner ID under Branding & properties → Publisher verification. This removes the "unverified" warning; without it, many companies block their staff from consenting.
+6. **Optional:** Microsoft 365 App Compliance (publisher attestation) for enterprise customers.
+
+## 7. Approvals the owner must do
 
 | Item | Who | Notes |
 |---|---|---|
