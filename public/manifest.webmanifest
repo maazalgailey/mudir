@@ -1,11 +1,21 @@
 {
-  "name": "مُدير · Mudir",
-  "short_name": "Mudir",
+  "name": "زاجل · Zajel",
+  "short_name": "Zajel",
+  "description": "Personal voice assistant for your calendar, email and WhatsApp — Arabic and English.",
+  "id": "/",
   "lang": "ar",
-  "dir": "rtl",
-  "start_url": "/",
+  "dir": "auto",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
   "theme_color": "#ffffff",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
 }

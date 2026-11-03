@@ -1,0 +1,22 @@
+# Wakes Zajel every 15 minutes so each user's daily briefing goes out at the time they chose.
+# The endpoint is safe to call repeatedly: every user gets at most one briefing per local day.
+# Optional: add a repository secret CRON_SECRET (and the same value in Vercel) to restrict who can trigger it.
+name: Daily briefings
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run due briefings
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://mudir-delta.vercel.app' }}
+        run: |
+          if [ -n "$CRON_SECRET" ]; then AUTH="Authorization: Bearer $CRON_SECRET"; else AUTH="X-Trigger: github"; fi
+          curl -fsS --max-time 240 -X POST -H "$AUTH" "$APP_URL/api/cron/briefings"

@@ -6,12 +6,12 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 // ---------- Translations ----------
 const I18N = {
   ar: {
-    brand: 'مُدير',
+    brand: 'زاجل',
     otherLang: 'English',
-    heroTitle: 'قل ما تريد… ومُدير يُنجزه',
+    heroTitle: 'قل ما تريد… وزاجل يُنجزه',
     heroText: 'تقويمك، فريقك، وبريدك في مكان واحد. اطلب بصوتك أو عبر Siri، وراجع كل رسالة قبل إرسالها.',
     heroDemoMe: '«ابي اجتماع ويّا سارة باچر الساعة ٣، وارسل للموظفين إن الدوام يبدأ ٩»',
-    heroDemoMudir: 'جهّزت دعوة الاجتماع مع سارة (لا تعارض في الوقت) ورسالة الدوام إلى 12 موظفًا. هل أرسلهما؟',
+    heroDemoZajel: 'جهّزت دعوة الاجتماع مع سارة (لا تعارض في الوقت) ورسالة الدوام إلى 12 موظفًا. هل أرسلهما؟',
     welcome: 'أهلًا بك',
     welcomeSub: 'سجّل الدخول للمتابعة',
     continueGoogle: 'المتابعة باستخدام Google',
@@ -29,7 +29,7 @@ const I18N = {
     navCalendar: 'التقويم',
     navPeople: 'الأشخاص',
     navSettings: 'الإعدادات',
-    askMudir: 'اسأل مُدير',
+    askZajel: 'اسأل زاجل',
     askHint: '«ذكّرني بالاجتماع غدًا 10 صباحًا» أو «راسل فريقي…»',
     askPh: 'اكتب أو تحدّث…',
     speak: 'تحدّث',
@@ -51,7 +51,7 @@ const I18N = {
     transcribing: 'أكتب ما قلته…',
     noSpeechHeard: 'لم أسمع شيئًا، حاول مرة أخرى',
     transcribeFailed: 'تعذّر تحويل الصوت إلى نص',
-    micDenied: 'اسمح لمُدير باستخدام الميكروفون من إعدادات المتصفح ثم حاول مرة أخرى',
+    micDenied: 'اسمح لزاجل باستخدام الميكروفون من إعدادات المتصفح ثم حاول مرة أخرى',
     micMissing: 'لم يتم العثور على ميكروفون',
     speechLang: 'لغة التحدث',
     speechLangSet: 'لغة التحدث: {lang}',
@@ -92,10 +92,10 @@ const I18N = {
     addRecipientPh: 'أضف بريدًا…',
     // Connections & meetings
     connect: 'تواصل مع مستخدم',
-    connectHelp: 'أدخل بريد شخص لديه حساب في مُدير. بعد قبوله يمكنكما ترتيب الاجتماعات، وتظهر الدعوات في تقويمه مباشرة.',
+    connectHelp: 'أدخل بريد شخص لديه حساب في زاجل. بعد قبوله يمكنكما ترتيب الاجتماعات، وتظهر الدعوات في تقويمه مباشرة.',
     sendRequest: 'إرسال طلب التواصل',
     contactsTitle: 'جهات الاتصال للبريد',
-    onMudir: 'متصلون في مُدير',
+    onZajel: 'متصلون في زاجل',
     requests: 'طلبات تواصل',
     waiting: 'بانتظار القبول',
     accept: 'قبول',
@@ -128,23 +128,95 @@ const I18N = {
     rPending: 'لم يرد بعد',
     youAccepted: 'قبلت الدعوة',
     youDeclined: 'اعتذرت عن الدعوة',
-    notOnMudirInvite: 'ادعُه للانضمام إلى مُدير',
-    inviteEmailSubject: 'انضم إليّ في مُدير',
-    inviteEmailBody: 'مرحبًا،\n\nأستخدم مُدير لتنظيم الاجتماعات والبريد. انضم من هنا لنرتب مواعيدنا معًا:\n{link}\n\nمع التحية،\n{name}',
+    notOnZajelInvite: 'ادعُه للانضمام إلى زاجل',
+    inviteEmailSubject: 'انضم إليّ في زاجل',
+    inviteEmailBody: 'مرحبًا،\n\nأستخدم زاجل لتنظيم الاجتماعات والبريد. انضم من هنا لنرتب مواعيدنا معًا:\n{link}\n\nمع التحية،\n{name}',
     connRequested: 'أُرسل طلب التواصل',
     connAccepted: 'أصبحتما متصلين',
     connRemoved: 'تمت الإزالة',
     confirmRemoveConn: 'إزالة هذا الاتصال؟',
-    noConnections: 'لا أحد بعد. تواصل مع زملائك في مُدير لترتيب الاجتماعات معهم بجملة واحدة.',
-    connectFirst: 'تواصل مع أشخاص في مُدير أولًا لتتمكن من دعوتهم.',
+    noConnections: 'لا أحد بعد. تواصل مع زملائك في زاجل لترتيب الاجتماعات معهم بجملة واحدة.',
+    connectFirst: 'تواصل مع أشخاص في زاجل أولًا لتتمكن من دعوتهم.',
     withNames: 'مع {names}',
     newChat: 'محادثة جديدة',
     chatCleared: 'بدأت محادثة جديدة',
     rememberedNote: 'سأتذكّر: {text}',
-    memoryTitle: 'ما يتذكّره مُدير',
-    memoryHelp: 'قل لمُدير مثلًا: «تذكّر أن توقيعي د. مازن» أو «مديرتي هي سارة». يمكنك حذف أي شيء هنا.',
+    memoryTitle: 'ما يتذكّره زاجل',
+    memoryHelp: 'قل لزاجل مثلًا: «تذكّر أن توقيعي د. مازن» أو «مديرتي هي سارة». يمكنك حذف أي شيء هنا.',
     memoryEmpty: 'لا شيء بعد.',
     forget: 'انسَ هذا',
+    // Landing page
+    lpHome: 'الرئيسية',
+    lpFeatures: 'المزايا',
+    lpPricing: 'الأسعار',
+    lpContact: 'تواصل معنا',
+    signIn: 'تسجيل الدخول',
+    backHome: 'الرئيسية',
+    lpTagline: 'مساعدك الصوتي الشخصي',
+    lpSub: 'تكلّم بالعربي أو الإنجليزي، وزاجل يرتّب يومك: بريدك، رسائلك، اجتماعاتك وتذكيراتك، ويعطيك ملخصًا كل صباح.',
+    lpStart: 'ابدأ مجانًا',
+    lpSee: 'شاهد ما يمكنه فعله',
+    lpFeaturesTitle: 'ماذا يفعل زاجل؟',
+    lpFeaturesLead: 'جملة واحدة بدل خمسة تطبيقات. وكل رسالة تراها قبل أن تُرسل.',
+    lpPricingTitle: 'الأسعار',
+    lpContactTitle: 'تواصل معنا',
+    lpContactLead: 'لديك سؤال، أو تريد زاجل لفريقك أو شركتك؟',
+    lpContactSoon: 'سنضيف وسيلة التواصل قريبًا.',
+    lpEmailUs: 'راسلنا',
+    f1t: 'ملخص كل صباح',
+    f1d: 'في الوقت الذي تختاره: اجتماعاتك، مهامك، والرسائل التي تحتاج ردًا، في إشعار واحد.',
+    f1q: '«صباح الخير! لديك اجتماعان، و3 رسائل تنتظر ردك، أهمها من سارة.»',
+    f2t: 'بريد بصوتك',
+    f2d: 'يكتب بريدًا رسميًا لفريقك كاملًا، بتوقيعك، وترسله من Gmail بضغطة.',
+    f2q: '«أرسل للموظفين إن الدوام باچر يبدأ ٩»',
+    f3t: 'اجتماعات بين المستخدمين',
+    f3d: 'تصل الدعوة إلى تقويم زميلك مباشرة، مع كشف التعارض دون كشف خصوصيته.',
+    f3q: '«ابي اجتماع ويّا سارة الأحد الساعة ١١»',
+    f4t: 'واتساب',
+    f4d: 'يجهّز رسالة لكل شخص، ويفتح محادثته والنص مكتوب.',
+    f4q: '«ارسل لعمر واتساب إني بتأخر ربع ساعة»',
+    f5t: 'يتذكّرك',
+    f5d: 'توقيعك، فريقك، تفضيلاتك. ويكمل المحادثة دون أن تعيد كلامك.',
+    f5q: '«اجعلها أقصر» · «خلّه الساعة ٤»',
+    f6t: 'يفهم لهجتك',
+    f6d: 'عربي خليجي وإنجليزي، بتوقيت قطر وأسبوع العمل، ويعمل مع Siri.',
+    f6q: '«يا Siri، زاجل»',
+    lpFree: 'مجاني',
+    lpPro: 'برو',
+    lpFreeList: ['التقويم والتصدير', 'مساعد زاجل الصوتي', 'الإرسال من بريدك', 'ملخص يومي'],
+    lpProList: ['حدود استخدام أعلى بكثير', 'أولوية في الذكاء الاصطناعي', 'مزايا جديدة أولًا'],
+    // Daily briefing
+    briefingTitle: 'ملخص اليوم',
+    details: 'التفاصيل',
+    briefingNow: 'لخّص يومي الآن',
+    briefingWorking: 'أجهّز ملخصك…',
+    briefingEmpty: 'لم يُجهَّز ملخص اليوم بعد.',
+    needReply: 'تحتاج ردًا',
+    important: 'مهم',
+    otherMail: '{n} رسائل أخرى يمكنها الانتظار',
+    suggestions: 'اقتراحات',
+    replyTo: 'رد',
+    replyCmd: 'اكتب ردًا على {from} بخصوص «{subject}»',
+    inboxNeedsRead: 'لإضافة بريدك إلى الملخص، أعد ربط Gmail وامنح إذن القراءة.',
+    inboxNotConnected: 'اربط Gmail ليتضمن الملخص بريدك.',
+    inboxReconnect: 'انتهت صلاحية ربط Gmail؛ أعد ربطه ليتضمن الملخص بريدك.',
+    reconnectGmail: 'أعد ربط Gmail',
+    briefingSettings: 'الملخص اليومي',
+    briefingSettingsHelp: 'يراجع زاجل تقويمك وبريدك في الوقت الذي تختاره، ويرسل لك ملخصًا بما يحتاج انتباهك.',
+    briefingOn: 'تشغيل الملخص اليومي',
+    briefingTime: 'الوقت',
+    briefingDays: 'الأيام',
+    briefingInbox: 'تضمين بريدي (قراءة فقط)',
+    saved2: 'تم الحفظ',
+    notifTitle: 'إشعارات الهاتف',
+    notifOn: 'تفعيل الإشعارات',
+    notifEnabled: 'الإشعارات مفعّلة على هذا الجهاز',
+    notifTest: 'إشعار تجريبي',
+    notifDenied: 'الإشعارات محظورة لهذا الموقع. فعّلها من إعدادات المتصفح.',
+    notifUnsupported: 'هذا المتصفح لا يدعم الإشعارات.',
+    notifIos: 'على iPhone: اضغط زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية»، وافتح زاجل من أيقونته، ثم فعّل الإشعارات.',
+    notifSent: 'أُرسل إشعار تجريبي',
+    notifNone: 'لا توجد أجهزة مفعّلة للإشعارات بعد',
     // People
     addPerson: 'إضافة شخص',
     editPerson: 'تعديل',
@@ -217,11 +289,11 @@ const I18N = {
     language: 'اللغة',
     gmailTitle: 'بريدك',
     gmailConnectedAs: 'متصل',
-    gmailNotConnected: 'اربط Gmail ليرسل مُدير الرسائل من بريدك بعد موافقتك.',
+    gmailNotConnected: 'اربط Gmail ليرسل زاجل الرسائل من بريدك بعد موافقتك.',
     connectGmail: 'ربط Gmail',
     disconnect: 'فصل',
     gmailOffNote: 'الإرسال المباشر غير مفعّل بعد. يمكنك فتح أي رسالة في Gmail وإرسالها من هناك.',
-    gmailNote: 'إذن «الإرسال فقط» — لا نقرأ بريدك أبدًا.',
+    gmailNote: 'إرسال، وقراءة فقط لتلخيص بريدك لك في الملخص اليومي. لا يحذف زاجل أي رسالة ولا يغيّرها.',
     gmailConnectedToast: 'تم ربط Gmail بنجاح',
     signedInToast: 'تم تسجيل الدخول وربط Gmail',
     gmailDeniedToast: 'لم يتم ربط Gmail',
@@ -230,23 +302,23 @@ const I18N = {
     gmailNoScopeToast: 'يجب السماح بإذن «إرسال البريد» لربط Gmail',
     disconnectedToast: 'تم فصل Gmail',
     siriTitle: 'Siri',
-    siriIntro: 'تحدّث مع مُدير من iPhone بدون فتح التطبيق:',
-    siriSay: '«يا Siri، مُدير» ← «أرسل لموظفيني دعوة لزيارة المتحف»',
+    siriIntro: 'تحدّث مع زاجل من iPhone بدون فتح التطبيق:',
+    siriSay: '«يا Siri، زاجل» ← «أرسل لموظفيني دعوة لزيارة المتحف»',
     siriStep1: 'افتح تطبيق <b>الاختصارات</b> ← <b>+</b> اختصار جديد.',
     siriStep2: 'أضف إجراء <b>إملاء النص</b> (اختر العربية).',
     siriStep3: 'أضف <b>ترميز URL</b> ليأخذ النص المُملى.',
     siriStep4: 'أضف <b>فتح عناوين URL</b>، واكتب الرابط أدناه ثم أدرج «النص المُرمّز» في آخره.',
-    siriStep5: 'سمِّ الاختصار <b>مُدير</b>. الآن قل «يا Siri، مُدير».',
+    siriStep5: 'سمِّ الاختصار <b>زاجل</b>. الآن قل «يا Siri، زاجل».',
     siriLink: 'الرابط',
-    siriNote: 'يفتح مُدير برسالتك جاهزة ويسألك قبل الإرسال.',
+    siriNote: 'يفتح زاجل برسالتك جاهزة ويسألك قبل الإرسال.',
     copyLink: 'نسخ الرابط',
     yourPlan: 'باقتك',
     planFree: 'مجاني',
-    planPro: 'مُدير برو',
+    planPro: 'زاجل برو',
     perMonth: '/ شهريًا',
     current: 'الحالية',
     featCalendar: 'التقويم والتصدير',
-    featAssistant: 'مساعد مُدير الصوتي',
+    featAssistant: 'مساعد زاجل الصوتي',
     featGmail: 'الإرسال من بريدك',
     featHigher: 'حدود استخدام أعلى بكثير',
     featPriority: 'أولوية في الذكاء الاصطناعي',
@@ -262,12 +334,12 @@ const I18N = {
     noEmails: 'لم تُرسل أي رسالة بعد.',
   },
   en: {
-    brand: 'Mudir',
+    brand: 'Zajel',
     otherLang: 'العربية',
-    heroTitle: 'Say it. Mudir gets it done.',
+    heroTitle: 'Say it. Zajel gets it done.',
     heroText: 'Your calendar, your team and your email in one place. Ask by voice or Siri, and review every message before it goes out.',
     heroDemoMe: '“Set up a meeting with Sara tomorrow at 3, and tell the team work starts at 9”',
-    heroDemoMudir: 'The invite to Sara (no clashes) and the email to your 12 employees are ready. Send both?',
+    heroDemoZajel: 'The invite to Sara (no clashes) and the email to your 12 employees are ready. Send both?',
     welcome: 'Welcome',
     welcomeSub: 'Sign in to continue',
     continueGoogle: 'Continue with Google',
@@ -285,7 +357,7 @@ const I18N = {
     navCalendar: 'Calendar',
     navPeople: 'People',
     navSettings: 'Settings',
-    askMudir: 'Ask Mudir',
+    askZajel: 'Ask Zajel',
     askHint: '“Remind me about the meeting tomorrow at 10” or “Email my team…”',
     askPh: 'Type or speak…',
     speak: 'Speak',
@@ -306,7 +378,7 @@ const I18N = {
     transcribing: 'Writing down what you said…',
     noSpeechHeard: "I didn't hear anything. Please try again.",
     transcribeFailed: "Couldn't turn your voice into text",
-    micDenied: 'Allow microphone access for Mudir in your browser settings, then try again',
+    micDenied: 'Allow microphone access for Zajel in your browser settings, then try again',
     micMissing: 'No microphone was found',
     speechLang: 'Speaking language',
     speechLangSet: 'Speaking language: {lang}',
@@ -346,10 +418,10 @@ const I18N = {
     openTask: 'Open',
     addRecipientPh: 'Add an email…',
     connect: 'Connect with someone',
-    connectHelp: 'Enter the email of someone who has a Mudir account. Once they accept, you can set up meetings and the invitations appear right on their calendar.',
+    connectHelp: 'Enter the email of someone who has a Zajel account. Once they accept, you can set up meetings and the invitations appear right on their calendar.',
     sendRequest: 'Send connection request',
     contactsTitle: 'Email contacts',
-    onMudir: 'Connected on Mudir',
+    onZajel: 'Connected on Zajel',
     requests: 'Connection requests',
     waiting: 'Waiting to accept',
     accept: 'Accept',
@@ -382,23 +454,93 @@ const I18N = {
     rPending: 'No reply yet',
     youAccepted: 'You accepted',
     youDeclined: 'You declined',
-    notOnMudirInvite: 'Invite them to join Mudir',
-    inviteEmailSubject: 'Join me on Mudir',
-    inviteEmailBody: 'Hi,\n\nI use Mudir to organise meetings and email. Join here so we can schedule things together:\n{link}\n\nBest regards,\n{name}',
+    notOnZajelInvite: 'Invite them to join Zajel',
+    inviteEmailSubject: 'Join me on Zajel',
+    inviteEmailBody: 'Hi,\n\nI use Zajel to organise meetings and email. Join here so we can schedule things together:\n{link}\n\nBest regards,\n{name}',
     connRequested: 'Connection request sent',
     connAccepted: "You're now connected",
     connRemoved: 'Removed',
     confirmRemoveConn: 'Remove this connection?',
-    noConnections: 'Nobody yet. Connect with colleagues on Mudir to set up meetings with them in one sentence.',
-    connectFirst: 'Connect with people on Mudir first so you can invite them.',
+    noConnections: 'Nobody yet. Connect with colleagues on Zajel to set up meetings with them in one sentence.',
+    connectFirst: 'Connect with people on Zajel first so you can invite them.',
     withNames: 'with {names}',
     newChat: 'New chat',
     chatCleared: 'Started a new chat',
     rememberedNote: "I'll remember: {text}",
-    memoryTitle: 'What Mudir remembers',
-    memoryHelp: 'Tell Mudir things like “Remember my signature is Dr. Mazen” or “My manager is Sara”. You can delete anything here.',
+    memoryTitle: 'What Zajel remembers',
+    memoryHelp: 'Tell Zajel things like “Remember my signature is Dr. Mazen” or “My manager is Sara”. You can delete anything here.',
     memoryEmpty: 'Nothing yet.',
     forget: 'Forget this',
+    lpHome: 'Home',
+    lpFeatures: 'Features',
+    lpPricing: 'Pricing',
+    lpContact: 'Contact',
+    signIn: 'Sign In',
+    backHome: 'Home',
+    lpTagline: 'Personal Voice Assistant',
+    lpSub: 'Speak in Arabic or English and Zajel runs your day: your email, messages, meetings and reminders, with a briefing every morning.',
+    lpStart: 'Start free',
+    lpSee: 'See what it does',
+    lpFeaturesTitle: 'What Zajel does',
+    lpFeaturesLead: 'One sentence instead of five apps. And you see every message before it goes out.',
+    lpPricingTitle: 'Pricing',
+    lpContactTitle: 'Contact',
+    lpContactLead: 'Questions, or want Zajel for your team or company?',
+    lpContactSoon: 'Contact details are coming soon.',
+    lpEmailUs: 'Email us',
+    f1t: 'A briefing every morning',
+    f1d: 'At the time you choose: your meetings, tasks and the emails that need a reply, in one notification.',
+    f1q: '“Good morning! Two meetings today and 3 emails waiting for you, the most urgent from Sara.”',
+    f2t: 'Email by voice',
+    f2d: 'Writes a polished email to your whole team, signed your way, sent from your Gmail in one tap.',
+    f2q: '“Tell the team work starts at 9 tomorrow”',
+    f3t: 'Meetings between users',
+    f3d: "Invitations land straight on your colleague's calendar, with clash checks that respect their privacy.",
+    f3q: '“Set up a meeting with Sara on Sunday at 11”',
+    f4t: 'WhatsApp',
+    f4d: 'Prepares a message for each person and opens their chat with the text written.',
+    f4q: "“WhatsApp Omar that I'm 15 minutes late”",
+    f5t: 'Remembers you',
+    f5d: "Your signature, your team, your preferences. And it follows the conversation, so you never repeat yourself.",
+    f5q: '“Make it shorter” · “Change it to 4”',
+    f6t: 'Speaks your language',
+    f6d: 'Gulf Arabic and English, on Qatar time and work week, and it works with Siri.',
+    f6q: '“Hey Siri, Zajel”',
+    lpFree: 'Free',
+    lpPro: 'Pro',
+    lpFreeList: ['Calendar & export', 'Zajel voice assistant', 'Send from your own email', 'Daily briefing'],
+    lpProList: ['Much higher usage limits', 'Priority AI', 'New features first'],
+    briefingTitle: "Today's briefing",
+    details: 'Details',
+    briefingNow: 'Brief me now',
+    briefingWorking: 'Preparing your briefing…',
+    briefingEmpty: "Today's briefing hasn't been prepared yet.",
+    needReply: 'Needs a reply',
+    important: 'Important',
+    otherMail: '{n} other emails can wait',
+    suggestions: 'Suggestions',
+    replyTo: 'Reply',
+    replyCmd: 'Write a reply to {from} about "{subject}"',
+    inboxNeedsRead: 'To include your inbox, reconnect Gmail and allow read access.',
+    inboxNotConnected: 'Connect Gmail to include your inbox in the briefing.',
+    inboxReconnect: 'Your Gmail connection expired; reconnect it to include your inbox.',
+    reconnectGmail: 'Reconnect Gmail',
+    briefingSettings: 'Daily briefing',
+    briefingSettingsHelp: 'At the time you choose, Zajel reviews your calendar and inbox and sends you a summary of what needs your attention.',
+    briefingOn: 'Turn on the daily briefing',
+    briefingTime: 'Time',
+    briefingDays: 'Days',
+    briefingInbox: 'Include my inbox (read-only)',
+    saved2: 'Saved',
+    notifTitle: 'Phone notifications',
+    notifOn: 'Turn on notifications',
+    notifEnabled: 'Notifications are on for this device',
+    notifTest: 'Send a test',
+    notifDenied: 'Notifications are blocked for this site. Allow them in your browser settings.',
+    notifUnsupported: "This browser doesn't support notifications.",
+    notifIos: 'On iPhone: tap Share ⬆️ → "Add to Home Screen", open Zajel from its icon, then turn on notifications.',
+    notifSent: 'Test notification sent',
+    notifNone: 'No devices have notifications turned on yet',
     addPerson: 'Add person',
     editPerson: 'Edit',
     importList: 'Import list',
@@ -468,11 +610,11 @@ const I18N = {
     language: 'Language',
     gmailTitle: 'Your email',
     gmailConnectedAs: 'Connected',
-    gmailNotConnected: 'Connect Gmail so Mudir can send from your address after you approve.',
+    gmailNotConnected: 'Connect Gmail so Zajel can send from your address after you approve.',
     connectGmail: 'Connect Gmail',
     disconnect: 'Disconnect',
     gmailOffNote: "Direct sending isn't enabled yet. You can open any message in Gmail and send it from there.",
-    gmailNote: '“Send only” permission — we never read your inbox.',
+    gmailNote: 'Send, plus read-only access used only to summarise your inbox in your daily briefing. Zajel never deletes or changes your email.',
     gmailConnectedToast: 'Gmail connected',
     signedInToast: 'Signed in and Gmail connected',
     gmailDeniedToast: 'Gmail was not connected',
@@ -481,23 +623,23 @@ const I18N = {
     gmailNoScopeToast: 'Allow the “send email” permission to connect Gmail',
     disconnectedToast: 'Gmail disconnected',
     siriTitle: 'Siri',
-    siriIntro: 'Talk to Mudir from your iPhone without opening the app:',
-    siriSay: '“Hey Siri, Mudir” → “Email my employees to visit the museum”',
+    siriIntro: 'Talk to Zajel from your iPhone without opening the app:',
+    siriSay: '“Hey Siri, Zajel” → “Email my employees to visit the museum”',
     siriStep1: 'Open the <b>Shortcuts</b> app → <b>+</b> new shortcut.',
     siriStep2: 'Add the <b>Dictate Text</b> action.',
     siriStep3: 'Add <b>URL Encode</b> so it takes the dictated text.',
     siriStep4: 'Add <b>Open URLs</b>, type the link below, then insert “URL Encoded Text” at its end.',
-    siriStep5: 'Name the shortcut <b>Mudir</b>. Now say “Hey Siri, Mudir”.',
+    siriStep5: 'Name the shortcut <b>Zajel</b>. Now say “Hey Siri, Zajel”.',
     siriLink: 'Link',
-    siriNote: 'Mudir opens with your message ready and asks before sending.',
+    siriNote: 'Zajel opens with your message ready and asks before sending.',
     copyLink: 'Copy link',
     yourPlan: 'Your plan',
     planFree: 'Free',
-    planPro: 'Mudir Pro',
+    planPro: 'Zajel Pro',
     perMonth: '/ month',
     current: 'Current',
     featCalendar: 'Calendar & export',
-    featAssistant: 'Mudir voice assistant',
+    featAssistant: 'Zajel voice assistant',
     featGmail: 'Send from your own email',
     featHigher: 'Much higher usage limits',
     featPriority: 'Priority AI',
@@ -620,7 +762,7 @@ function applyLang() {
   const html = document.documentElement;
   html.lang = state.lang;
   html.dir = state.lang === 'ar' ? 'rtl' : 'ltr';
-  document.title = state.lang === 'ar' ? 'مُدير · Mudir' : 'Mudir · مُدير';
+  document.title = state.lang === 'ar' ? 'زاجل · Zajel' : 'Zajel · زاجل';
   $$('[data-i18n]').forEach((el) => (el.textContent = t(el.dataset.i18n)));
   $$('[data-i18n-ph]').forEach((el) => (el.placeholder = t(el.dataset.i18nPh)));
   $$('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
@@ -637,8 +779,13 @@ function setLang(lang) {
   state.lang = lang;
   store.set('mudir.lang', lang);
   applyLang();
+  if (!$('#landing').hidden) {
+    renderLanding();
+    startTyping();
+  }
   if (state.user) {
     render();
+    renderBriefing();
     if (state.detailId && !$('#sheet-detail').hidden) openDetail(state.detailId);
     if (!$('#sheet-day').hidden) openDay(state.calDay);
   }
@@ -720,7 +867,7 @@ $('#logout').addEventListener('click', async () => {
   clearInterval(pollTimer);
   $('#as-thread').innerHTML = '';
   $('#app').hidden = true;
-  showAuth();
+  showLanding();
 });
 
 function showAuth() {
@@ -730,8 +877,79 @@ function showAuth() {
   $('#google-login').href = `/api/auth/google${pendingAsk ? `?ask=${encodeURIComponent(pendingAsk)}` : ''}`;
   $('#google-note').hidden = !google;
   $('#auth-divider').hidden = !google;
+  $('#landing').hidden = true;
   $('#auth').hidden = false;
+  window.scrollTo(0, 0);
 }
+
+// ---------- Public landing page ----------
+function showLanding() {
+  $('#auth').hidden = true;
+  $('#app').hidden = true;
+  $('#landing').hidden = false;
+  renderLanding();
+  startTyping();
+}
+
+function renderLanding() {
+  const L = I18N[state.lang];
+  const features = [['sun', 'f1'], ['mail', 'f2'], ['meeting', 'f3'], ['whatsapp', 'f4'], ['brain', 'f5'], ['globe', 'f6']];
+  $('#lp-feature-grid').innerHTML = features
+    .map(([ic, k]) => `<article class="lp-card"><h3>${icon(ic)}${esc(t(k + 't'))}</h3><p>${esc(t(k + 'd'))}</p><div class="lp-quote" dir="auto">${esc(t(k + 'q'))}</div></article>`)
+    .join('');
+  const price = state.config?.proPrice || '$9';
+  $('#lp-prices').innerHTML = `
+    <div class="lp-price"><h3>${esc(t('lpFree'))}</h3><div class="amount">0</div><ul>${L.lpFreeList.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      <button class="lp-btn" data-signin>${esc(t('lpStart'))}</button></div>
+    <div class="lp-price pro"><h3>${esc(t('lpPro'))}</h3><div class="amount">${esc(price)} <small>${esc(t('perMonth'))}</small></div><ul>${L.lpProList.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      <button class="lp-btn primary" data-signin>${esc(t('lpStart'))}</button></div>`;
+  const mail = state.config?.contactEmail;
+  $('#lp-contact-body').innerHTML = mail
+    ? `<a class="lp-btn primary" href="mailto:${esc(mail)}" style="align-self:flex-start">${icon('mail')}&nbsp;${esc(t('lpEmailUs'))}</a>`
+    : `<p class="lp-lead">${esc(t('lpContactSoon'))}</p>`;
+}
+
+// The hero types out real requests, one after another.
+let typingTimer = null;
+function startTyping() {
+  clearTimeout(typingTimer);
+  const lines = ['ex1', 'ex2', 'ex3', 'ex5'].map((k) => t(k));
+  let line = 0;
+  let pos = 0;
+  const el = $('#lp-say-text');
+  const step = () => {
+    if ($('#landing').hidden) return;
+    const text = lines[line];
+    el.textContent = text.slice(0, pos);
+    el.dir = 'auto';
+    if (pos < text.length) {
+      pos++;
+      typingTimer = setTimeout(step, 45);
+    } else {
+      typingTimer = setTimeout(() => {
+        line = (line + 1) % lines.length;
+        pos = 0;
+        step();
+      }, 2200);
+    }
+  };
+  step();
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-signin]')) {
+    e.preventDefault();
+    showAuth();
+  }
+  if (e.target.closest('[data-back-landing]')) showLanding();
+  const lp = e.target.closest('[data-lp]');
+  if (lp) {
+    e.preventDefault();
+    const target = $(`#lp-${lp.dataset.lp}`);
+    if (target) window.scrollTo({ top: lp.dataset.lp === 'home' ? 0 : target.offsetTop - 60, behavior: 'smooth' });
+    $$('.lp-links a').forEach((a) => a.classList.toggle('active', a === lp));
+  }
+});
 
 // ---------- Boot ----------
 async function boot() {
@@ -744,15 +962,19 @@ async function boot() {
     state.user = (await api('/api/me')).user;
     await enterApp();
   } catch {
-    showAuth();
+    // Visitors see the landing page; links that expect sign-in (Siri, Google return) go straight to it.
     const toastKey = { loginDenied: 'loginDeniedToast', error: 'gmailErrorToast' }[params.get('gmail')];
+    if (toastKey || session.get('mudir.ask') || location.hash === '#signin') showAuth();
+    else showLanding();
     if (toastKey) toast(t(toastKey), true);
   }
 }
 
 async function enterApp() {
+  $('#landing').hidden = true;
   $('#auth').hidden = true;
   $('#app').hidden = false;
+  registerServiceWorker();
   const now = new Date();
   state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   state.calDay = today();
@@ -782,7 +1004,9 @@ async function enterApp() {
   } else if (params.get('billing') === 'cancel') toast(t('billingCancel'));
   if (params.toString()) history.replaceState(null, '', location.pathname + location.hash);
 
+  const fromNotification = location.hash === '#briefing';
   showView(location.hash.replace('#', '') || 'calendar');
+  loadBriefing({ expand: fromNotification });
 
   const ask = session.get('mudir.ask');
   if (ask) {
@@ -830,6 +1054,7 @@ async function refreshUser() {
 const VIEWS = ['calendar', 'people', 'settings'];
 function showView(v) {
   if (v === 'account') v = 'settings';
+  if (v === 'briefing') v = 'calendar';
   if (!VIEWS.includes(v)) v = 'calendar';
   state.view = v;
   VIEWS.forEach((x) => ($(`#view-${x}`).hidden = x !== v));
@@ -1214,7 +1439,7 @@ function renderConnections() {
     html += `<div class="group"><div class="group-head"><span class="row gap"><span class="tag red">${esc(t('requests'))}</span><span class="muted small">${incoming.length}</span></span></div>
       <ul class="people connections">${incoming.map((c) => person(c, `<button class="btn ghost" data-conn-remove="${c.id}">${esc(t('decline'))}</button><button class="btn primary" data-conn-accept="${c.id}">${esc(t('accept'))}</button>`)).join('')}</ul></div>`;
   }
-  html += `<div class="group"><div class="group-head"><span class="row gap"><span class="tag blue">${esc(t('onMudir'))}</span><span class="muted small">${accepted.length}</span></span></div>`;
+  html += `<div class="group"><div class="group-head"><span class="row gap"><span class="tag blue">${esc(t('onZajel'))}</span><span class="muted small">${accepted.length}</span></span></div>`;
   html += accepted.length || outgoing.length
     ? `<ul class="people connections">${accepted.map((c) => person(c, `<button class="btn ghost" data-conn-meet="${c.user.id}">${icon('meeting')}${esc(t('meetingBtn'))}</button><button class="icon-btn lg" data-conn-remove="${c.id}" data-confirm aria-label="${esc(t('remove'))}">${icon('x')}</button>`)).join('')}
         ${outgoing.map((c) => person(c, `<span class="status-pill pending">${esc(t('waiting'))}</span><button class="icon-btn lg" data-conn-remove="${c.id}" aria-label="${esc(t('remove'))}">${icon('x')}</button>`)).join('')}</ul>`
@@ -1268,7 +1493,7 @@ $('#connect-form').addEventListener('submit', async (e) => {
       const body = t('inviteEmailBody', { link, name: state.user.name });
       const gmail = `https://mail.google.com/mail/?${new URLSearchParams({ view: 'cm', fs: '1', to: email, su: t('inviteEmailSubject'), body })}`;
       $('#connect-result').innerHTML = `<div class="callout yellow">${icon('alert')}<div class="grow"><span>${esc(err.message)}</span>
-        <a class="btn ghost" href="${esc(gmail)}" target="_blank" rel="noopener" style="align-self:flex-start">${icon('mail')}${esc(t('notOnMudirInvite'))}</a></div></div>`;
+        <a class="btn ghost" href="${esc(gmail)}" target="_blank" rel="noopener" style="align-self:flex-start">${icon('mail')}${esc(t('notOnZajelInvite'))}</a></div></div>`;
     } else {
       toast(err.message, true);
     }
@@ -1277,7 +1502,7 @@ $('#connect-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- Ask Mudir ----------
+// ---------- Ask Zajel ----------
 // Voice input. Primary path: record audio and transcribe it on the server with OpenAI, which is
 // accurate in Arabic and English and works the same on iPhone, Android and laptops.
 // Fallback: the browser's own speech recognition, when recording or server transcription is unavailable.
@@ -1340,7 +1565,7 @@ function unlockSpeechOutput() {
 
 function startVoice() {
   if (voice) return finishVoice(); // tapping again means "I'm done"
-  // Never talk over the user: opening the mic silences Mudir straight away.
+  // Never talk over the user: opening the mic silences Zajel straight away.
   try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch { /* nothing to stop */ }
   unlockSpeechOutput();
   if (useServerSpeech()) return startRecording();
@@ -2334,6 +2559,176 @@ $('#confirm-send').addEventListener('click', async () => {
   }
 });
 
+// ---------- Daily briefing ----------
+let briefing = null;
+let briefingOpen = false;
+
+async function loadBriefing({ expand = false } = {}) {
+  try {
+    const res = await api('/api/briefing');
+    briefing = res.briefing && res.briefing.date === res.today ? res.briefing : null;
+    if (expand) briefingOpen = true;
+    renderBriefing();
+    // The scheduled time passed while the phone was off or the scheduler was late: catch up now.
+    if (res.due) await briefMeNow({ quiet: true });
+  } catch { /* the card simply stays hidden */ }
+  if (expand) $('#briefing-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function briefMeNow({ quiet = false } = {}) {
+  const card = $('#briefing-card');
+  if (!quiet) {
+    card.hidden = false;
+    card.innerHTML = `<div class="briefing"><h2>${icon('sun')}${esc(t('briefingTitle'))}</h2><p class="muted"><span class="spinner"></span> ${esc(t('briefingWorking'))}</p></div>`;
+  }
+  try {
+    briefing = (await api('/api/briefing/now', { method: 'POST' })).briefing;
+    briefingOpen = true;
+  } catch (err) {
+    if (!quiet) toast(err.message, true);
+  }
+  renderBriefing();
+}
+
+function renderBriefing() {
+  const card = $('#briefing-card');
+  const enabled = state.user?.briefing?.enabled;
+  if (!briefing) {
+    card.hidden = !enabled;
+    if (enabled) {
+      card.innerHTML = `<div class="briefing"><h2>${icon('sun')}${esc(t('briefingTitle'))}</h2>
+        <p class="muted">${esc(t('briefingEmpty'))}</p>
+        <button class="btn primary" data-brief-now style="align-self:flex-start">${icon('sparkle')}${esc(t('briefingNow'))}</button></div>`;
+    }
+    return;
+  }
+  const b = briefing;
+  const mailItem = (m) => `<li><strong dir="auto">${esc(m.from)}</strong> · <span dir="auto">${esc(m.subject)}</span>
+    ${m.why ? `<br><span class="muted small" dir="auto">${esc(m.why)}</span>` : ''}
+    <br><button class="btn sm" data-reply-from="${esc(m.from)}" data-reply-subject="${esc(m.subject)}" style="margin-top:6px">${icon('mail')}${esc(t('replyTo'))}</button></li>`;
+  const inboxNote = !b.inbox?.available && b.inbox?.reason && b.inbox.reason !== 'off'
+    ? `<div class="row gap wrap"><span class="muted small">${esc(t({ needsRead: 'inboxNeedsRead', notConnected: 'inboxNotConnected', reconnect: 'inboxReconnect' }[b.inbox.reason] || 'inboxNotConnected'))}</span>
+       ${state.config.integrations.gmail ? `<a class="btn sm" href="/api/google/connect">${icon('google', 'g')}${esc(t('reconnectGmail'))}</a>` : ''}</div>`
+    : '';
+  card.hidden = false;
+  card.innerHTML = `<div class="briefing" dir="auto">
+    <h2>${icon('sun')}<span dir="auto">${esc(b.headline || t('briefingTitle'))}</span></h2>
+    <p dir="auto">${esc(b.summary)}</p>
+    ${briefingOpen ? `
+      ${b.schedule?.length ? `<ul>${b.schedule.map((s) => `<li dir="auto">${esc(s)}</li>`).join('')}</ul>` : ''}
+      ${b.emails?.needReply?.length ? `<h3 class="row gap" style="font-size:0.95rem;color:#fff">${icon('inbox')}${esc(t('needReply'))}</h3><ul class="brief-mail">${b.emails.needReply.map(mailItem).join('')}</ul>` : ''}
+      ${b.emails?.important?.length ? `<h3 class="row gap" style="font-size:0.95rem;color:#fff">${icon('alert')}${esc(t('important'))}</h3><ul class="brief-mail">${b.emails.important.map(mailItem).join('')}</ul>` : ''}
+      ${b.emails?.otherCount ? `<p class="muted small">${esc(t('otherMail', { n: b.emails.otherCount }))}</p>` : ''}
+      ${b.suggestions?.length ? `<h3 class="row gap" style="font-size:0.95rem;color:#fff">${icon('sparkle')}${esc(t('suggestions'))}</h3><ul>${b.suggestions.map((s) => `<li dir="auto">${esc(s)}</li>`).join('')}</ul>` : ''}
+      ${inboxNote}` : ''}
+    <div class="row gap wrap">
+      <button class="btn sm" data-brief-toggle>${esc(briefingOpen ? t('close') : t('details'))}</button>
+      <button class="btn sm" data-brief-now>${icon('sparkle')}${esc(t('briefingNow'))}</button>
+    </div>
+  </div>`;
+}
+
+$('#briefing-card').addEventListener('click', (e) => {
+  if (e.target.closest('[data-brief-now]')) return briefMeNow();
+  if (e.target.closest('[data-brief-toggle]')) {
+    briefingOpen = !briefingOpen;
+    return renderBriefing();
+  }
+  const reply = e.target.closest('[data-reply-from]');
+  if (reply) {
+    openAssistant();
+    $('#as-input').value = t('replyCmd', { from: reply.dataset.replyFrom, subject: reply.dataset.replySubject });
+    $('#as-input').focus();
+  }
+});
+
+// Settings card: the user's own schedule for the briefing, and phone notifications.
+const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+async function currentPushSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.getRegistration('/');
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+function urlBase64ToUint8Array(base64) {
+  const pad = '='.repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function enableNotifications() {
+  if (!pushSupported()) return toast(t(isIos() && !isStandalone() ? 'notifIos' : 'notifUnsupported'), true);
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') return toast(t('notifDenied'), true);
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  const { publicKey } = await api('/api/push/key');
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) }));
+  await api('/api/push/subscribe', { method: 'POST', body: { subscription: sub.toJSON() } });
+  renderBriefingSettings();
+}
+
+async function renderBriefingSettings() {
+  const b = state.user.briefing;
+  const fmtDay = new Intl.DateTimeFormat(locale(), { weekday: 'short' });
+  const order = weekStartsSaturday() ? [6, 0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6];
+  const subscribed = Boolean(await currentPushSubscription().catch(() => null));
+  let notif;
+  if (subscribed && Notification.permission === 'granted') {
+    notif = `<p class="row gap" style="color:var(--green-t)">${icon('check')}${esc(t('notifEnabled'))}</p>
+      <button class="btn ghost" id="notif-test">${icon('bell')}${esc(t('notifTest'))}</button>`;
+  } else if (isIos() && !isStandalone()) {
+    notif = `<div class="callout blue">${icon('bell')}<span>${esc(t('notifIos'))}</span></div>`;
+  } else if (!pushSupported()) {
+    notif = `<p class="muted">${esc(t('notifUnsupported'))}</p>`;
+  } else if (Notification.permission === 'denied') {
+    notif = `<div class="callout red">${icon('alert')}<span>${esc(t('notifDenied'))}</span></div>`;
+  } else {
+    notif = `<button class="btn primary lg block" id="notif-on">${icon('bell')}${esc(t('notifOn'))}</button>`;
+  }
+  $('#briefing-settings').innerHTML = `
+    <h3 class="card-title row gap">${icon('sun')}${esc(t('briefingSettings'))}</h3>
+    <p class="muted small" style="margin-bottom:6px">${esc(t('briefingSettingsHelp'))}</p>
+    <div class="setting-row"><span class="strong">${esc(t('briefingOn'))}</span>
+      <label class="switch"><input type="checkbox" id="bs-enabled" ${b.enabled ? 'checked' : ''} /><span></span></label></div>
+    <div class="setting-row"><span>${esc(t('briefingTime'))}</span><input type="time" class="prop-input" id="bs-time" value="${esc(b.time)}" dir="ltr" /></div>
+    <div class="setting-row" style="flex-direction:column;align-items:stretch"><span>${esc(t('briefingDays'))}</span>
+      <div class="days">${order.map((d) => `<label><input type="checkbox" value="${d}" ${b.days.includes(d) ? 'checked' : ''} />${esc(fmtDay.format(new Date(2024, 0, 7 + d)))}</label>`).join('')}</div></div>
+    <div class="setting-row"><span>${esc(t('briefingInbox'))}${state.user.gmail && !state.user.gmailCanRead ? `<br><a class="small" href="/api/google/connect">${esc(t('reconnectGmail'))}</a>` : ''}</span>
+      <label class="switch"><input type="checkbox" id="bs-inbox" ${b.inbox ? 'checked' : ''} /><span></span></label></div>
+    <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px"><span class="strong row gap">${icon('bell')}${esc(t('notifTitle'))}</span>${notif}</div>`;
+
+  const save = async () => {
+    const body = {
+      enabled: $('#bs-enabled').checked,
+      time: $('#bs-time').value,
+      days: $$('#briefing-settings .days input:checked').map((x) => Number(x.value)),
+      inbox: $('#bs-inbox').checked,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Qatar',
+    };
+    try {
+      state.user = (await api('/api/briefing/settings', { method: 'PATCH', body })).user;
+      toast(t('saved2'));
+      renderBriefing();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  };
+  $('#briefing-settings').querySelectorAll('input').forEach((el) => el.addEventListener('change', save));
+  $('#notif-on')?.addEventListener('click', () => enableNotifications().catch((err) => toast(err.message, true)));
+  $('#notif-test')?.addEventListener('click', async () => {
+    const { sent } = await api('/api/push/test', { method: 'POST' });
+    toast(t(sent ? 'notifSent' : 'notifNone'), !sent);
+  });
+}
+
 // ---------- Memory ----------
 async function renderMemory() {
   const card = $('#memory-card');
@@ -2384,6 +2779,7 @@ async function renderSettings() {
   });
 
   renderMemory();
+  renderBriefingSettings();
 
   const siriLink = `${location.origin}/?ask=`;
   $('#siri-card').innerHTML = `
