@@ -80,7 +80,29 @@ Status as of 3 November 2026. Covers the "Mudir — Product Development Master B
 5. **Publisher verification (the "approval"):** join the free Microsoft AI Cloud Partner Program to get a Partner ID, complete its business verification, then add the Partner ID under Branding & properties → Publisher verification. This removes the "unverified" warning; without it, many companies block their staff from consenting.
 6. **Optional:** Microsoft 365 App Compliance (publisher attestation) for enterprise customers.
 
-## 7. Approvals the owner must do
+## 7. App Store (iPhone) and Google Play
+
+**Today (no approval needed):** Zajel is an installable web app. iPhone: Safari → Share → *Add to Home Screen*. It gets the Z icon, opens full screen, and receives briefing notifications (iOS 16.4+, only when opened from the home-screen icon).
+
+**Path to the App Store**
+
+1. **Apple Developer Program** — $99/year. Enrol as an *Organization* for a brand (needs a free D-U-N-S number, takes a few days) or as an *Individual* (faster; your personal name shows as the seller).
+2. **Native shell** — wrap the existing app with **Capacitor** (same code, native iOS project). Apple rejects plain website wrappers (guideline 4.2), so add real native value:
+   - native push notifications (APNs) for the briefing,
+   - **Siri via App Intents** ("Hey Siri, ask Zajel…" without building a Shortcut),
+   - a home-screen **widget** showing today's briefing,
+   - native microphone and haptics.
+3. **No Mac needed** — build in the cloud with **Codemagic** (free tier includes macOS build minutes) and upload straight to **TestFlight** for testing on your iPhone.
+4. **Apple's requirements to fix before review:**
+   - **Sign in with Apple** (guideline 4.8: required when an app offers Google sign-in).
+   - **Delete account inside the app** (required for any app with sign-up).
+   - **Privacy policy URL** and the App Privacy "labels" (email, contacts, audio sent for transcription, calendar data).
+   - Own domain (also needed for Google and Microsoft verification).
+5. **App Store Connect listing** — name (check "Zajel" is free), Arabic + English descriptions, screenshots for 6.7" and 6.5" iPhones, support URL. Review usually takes 1–3 days.
+
+**Google Play** — $25 one-time. Fastest route is a Trusted Web Activity built with PWABuilder from the live site; the same Capacitor project can follow.
+
+## 8. Approvals the owner must do
 
 | Item | Who | Notes |
 |---|---|---|
