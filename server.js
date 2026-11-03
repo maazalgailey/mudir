@@ -647,7 +647,8 @@ const toMin = (time) => (TIME_RE.test(time) ? Number(time.slice(0, 2)) * 60 + Nu
 async function meetingsFor(userId, from, to) {
   const rows = await query(
     `SELECT m.*, o.name AS organizer_name,
-       COALESCE(json_agg(json_build_object('id', a.user_id, 'name', au.name, 'response', a.response)) FILTER (WHERE a.user_id IS NOT NULL), '[]') AS attendees
+       COALESCE(json_agg(json_build_object('id', a.user_id, 'name', au.name, 'response', a.response)) FILTER (WHERE a.user_id IS NOT NULL), '[]') AS attendees,
+       COALESCE((SELECT json_agg(json_build_object('email', g.email, 'name', g.name, 'invited', g.invited_at IS NOT NULL)) FROM meeting_guests g WHERE g.meeting_id = m.id), '[]') AS guests
      FROM meetings m
      JOIN users o ON o.id = m.organizer_id
      LEFT JOIN meeting_attendees a ON a.meeting_id = m.id
@@ -663,6 +664,7 @@ async function meetingsFor(userId, from, to) {
 
 function meetingOut(m, userId) {
   const attendees = typeof m.attendees === 'string' ? JSON.parse(m.attendees) : m.attendees || [];
+  const guests = typeof m.guests === 'string' ? JSON.parse(m.guests) : m.guests || [];
   const mine = attendees.find((a) => a.id === userId);
   return {
     id: m.id,
@@ -676,7 +678,83 @@ function meetingOut(m, userId) {
     isOrganizer: m.organizer_id === userId,
     myResponse: m.organizer_id === userId ? 'accepted' : mine?.response || 'pending',
     attendees,
+    // Guests' addresses are only shown to the organizer.
+    guests: m.organizer_id === userId ? guests : guests.map((g) => ({ name: g.name || g.email.split('@')[0] })),
   };
+}
+
+function guestInvite(lang, organizer, m, guestName) {
+  const ar = lang === 'ar';
+  const when = new Intl.DateTimeFormat(ar ? 'ar-EG-u-nu-latn' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(m.date + 'T00:00:00Z'));
+  const lines = ar
+    ? [
+        `مرحبًا${guestName ? ` ${guestName}` : ''}،`, '',
+        `يدعوك ${organizer.name} إلى اجتماع:`, '',
+        m.title,
+        `التاريخ: ${when}`,
+        m.time ? `الوقت: ${m.time} (${m.durationMin} دقيقة)` : '',
+        m.location ? `المكان: ${m.location}` : '',
+        m.notes ? `\n${m.notes}` : '', '',
+        'يرجى تأكيد حضورك بالرد على هذه الرسالة.', '',
+        `— أُرسلت عبر زاجل: ${APP_URL}`,
+      ]
+    : [
+        `Hello${guestName ? ` ${guestName}` : ''},`, '',
+        `${organizer.name} has invited you to a meeting:`, '',
+        m.title,
+        `Date: ${when}`,
+        m.time ? `Time: ${m.time} (${m.durationMin} min)` : '',
+        m.location ? `Location: ${m.location}` : '',
+        m.notes ? `\n${m.notes}` : '', '',
+        'Please reply to this email to confirm.', '',
+        `— Sent with Zajel: ${APP_URL}`,
+      ];
+  return { subject: ar ? `دعوة: ${m.title}` : `Invitation: ${m.title}`, body: lines.filter((l, i) => l !== '' || lines[i - 1] !== '').join('\n') };
+}
+
+// Email guests who aren't on Zajel from the organizer's own Gmail. Without Gmail, the client gets
+// the ready-made text to send from their own email app instead.
+async function inviteGuests(req, user, m) {
+  if (!m.guests.length) return { sent: [], notSent: [] };
+  const lang = langOf(req);
+  const drafts = m.guests.map((g) => ({ ...g, ...guestInvite(lang, user, m, g.name) }));
+  const canSend = googleEnabled && user.google_refresh_token;
+  const sent = [];
+  if (canSend) {
+    try {
+      const accessToken = await gmailAccessToken(user);
+      for (const d of drafts) {
+        const raw = Buffer.from(buildMime({ fromName: user.name, fromEmail: user.google_email, to: d.email, subject: d.subject, text: d.body })).toString('base64url');
+        const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw }),
+        });
+        if (!r.ok) {
+          console.error('Guest invite failed', r.status, (await r.text()).slice(0, 200));
+          continue;
+        }
+        sent.push(d.email);
+        await query('UPDATE meeting_guests SET invited_at = now() WHERE meeting_id = $1 AND email = $2', [m.id, d.email]);
+      }
+      if (sent.length) await bumpUsage(user.id, 'email', sent.length);
+    } catch (err) {
+      console.error('Guest invites failed:', err.message);
+    }
+  }
+  return {
+    sent,
+    notSent: drafts.filter((d) => !sent.includes(d.email)).map(({ email, name, subject, body }) => ({ email, name, subject, body })),
+  };
+}
+
+// Who can be invited: accepted connections, plus people I've just sent a request to
+// (adding someone while setting up a meeting shouldn't wait for them to accept first).
+async function invitableUsers(userId) {
+  return (await connectionsOf(userId))
+    .filter((c) => c.status === 'accepted' || c.requester_id === userId)
+    .map((c) => ({ id: c.other_id, name: c.other_name, email: c.other_email }));
 }
 
 // Clashes for everyone involved. Other people's items only ever show as "busy", never their titles.
@@ -712,6 +790,10 @@ function cleanMeeting(body) {
     durationMin: Math.min(Math.max(parseInt(body.durationMin, 10) || 30, 5), 600),
     location: String(body.location || '').trim().slice(0, 200),
     attendeeIds: [...new Set((Array.isArray(body.attendeeIds) ? body.attendeeIds : []).map(String))].slice(0, 50),
+    guests: (Array.isArray(body.guests) ? body.guests : [])
+      .map((g) => ({ email: String(g?.email || '').trim().toLowerCase().slice(0, 200), name: String(g?.name || '').trim().slice(0, 120) }))
+      .filter((g, i, all) => EMAIL_RE.test(g.email) && all.findIndex((x) => x.email === g.email) === i)
+      .slice(0, 30),
   };
 }
 
@@ -730,8 +812,9 @@ app.post('/api/meetings', auth, h(async (req, res) => {
   const m = cleanMeeting(req.body);
   if (!m.title) return fail(res, 400, msg(req, 'titleRequired'));
   if (!DATE_RE.test(m.date) || (m.time && !TIME_RE.test(m.time))) return fail(res, 400, msg(req, 'invalidDate'));
-  const allowed = new Set((await connectedUsers(req.user.id)).map((u) => u.id));
-  if (!m.attendeeIds.length || !m.attendeeIds.every((a) => allowed.has(a))) return fail(res, 400, msg(req, 'notConnected'));
+  const allowed = new Set((await invitableUsers(req.user.id)).map((u) => u.id));
+  if (!m.attendeeIds.length && !m.guests.length) return fail(res, 400, msg(req, 'noRecipients'));
+  if (!m.attendeeIds.every((a) => allowed.has(a))) return fail(res, 400, msg(req, 'notConnected'));
   if (!(await claimKey(req.user.id, req.body.key))) return fail(res, 409, msg(req, 'alreadyDone'));
 
   const conflicts = await findConflicts(req.user, m, [req.user.id, ...m.attendeeIds]);
@@ -741,9 +824,11 @@ app.post('/api/meetings', auth, h(async (req, res) => {
     [meetingId, req.user.id, m.title, m.notes, m.date, m.time, m.durationMin, m.location],
   );
   for (const uid of m.attendeeIds) await query('INSERT INTO meeting_attendees (meeting_id, user_id) VALUES ($1, $2)', [meetingId, uid]);
-  await audit(req.user.id, 'meeting.create', { meeting: meetingId, attendees: m.attendeeIds.length, date: m.date });
+  for (const g of m.guests) await query('INSERT INTO meeting_guests (meeting_id, email, name) VALUES ($1, $2, $3)', [meetingId, g.email, g.name]);
+  const guestResult = await inviteGuests(req, req.user, { ...m, id: meetingId });
+  await audit(req.user.id, 'meeting.create', { meeting: meetingId, attendees: m.attendeeIds.length, guests: m.guests.length, date: m.date });
   const [meeting] = (await meetingsFor(req.user.id, m.date, m.date)).filter((x) => x.id === meetingId);
-  res.json({ meeting, conflicts });
+  res.json({ meeting, conflicts, guests: guestResult });
 }));
 
 app.post('/api/meetings/:id/respond', auth, h(async (req, res) => {
@@ -1104,8 +1189,8 @@ ACTIONS — return zero or more in "actions"; a request with several steps gets 
 - {"type":"message","channel":"whatsapp"|"sms","recipients":[contact ids],"unmatched":[names not found],"body":string}
   For WhatsApp or text messages (واتساب، رسالة نصية، مسج، "WhatsApp them"). Short and conversational, in the language requested or of the request; no subject. Only contacts whose "reach" includes "phone" can receive it. The user opens each message in WhatsApp and sends it themselves.
   When the user just says "message" or "راسل" without a channel: use WhatsApp if the chosen people only have phones, email if they only have emails, and email if they have both.
-- {"type":"meeting","title":string,"date":"YYYY-MM-DD","time":"HH:MM","durationMin":number,"location":string,"notes":string,"attendees":[connection ids],"unmatched":[names not found]}
-  For meetings with other Zajel users from "connections"; they receive an invitation on their own calendar. Default duration 30 minutes. A person who is only in contacts (not connections) goes in "unmatched".
+- {"type":"meeting","title":string,"date":"YYYY-MM-DD","time":"HH:MM","durationMin":number,"location":string,"notes":string,"attendees":[connection ids],"guests":[contact ids or email addresses],"unmatched":[names not found]}
+  For meetings. People in "connections" go in "attendees" (the invitation appears on their own Zajel calendar). People only in "contacts" who have an email, and any email address the user says, go in "guests" (they get an email invitation). Anyone not found goes in "unmatched". Default duration 30 minutes.
 - {"type":"task","title":string,"date":"YYYY-MM-DD" or "","time":"HH:MM" or ""}
   For the user's own reminders, to-dos and personal appointments.
 
@@ -1150,7 +1235,7 @@ function summarizeActions(actions) {
     .map((a) => {
       if (a.type === 'message') return `Prepared ${a.channel} message to ${a.recipients.map((r) => r.name).join(', ') || 'nobody yet'} | body: ${a.body.slice(0, 600)}`;
       if (a.type === 'email') return `Prepared email to ${a.recipients.map((r) => r.name).join(', ') || 'nobody yet'} | subject: ${a.subject} | body: ${a.body.slice(0, 900)}`;
-      if (a.type === 'meeting') return `Prepared meeting "${a.title}" ${a.date} ${a.time} (${a.durationMin} min) with ${a.attendees.map((x) => x.name).join(', ')}${a.location ? ` at ${a.location}` : ''}`;
+      if (a.type === 'meeting') return `Prepared meeting "${a.title}" ${a.date} ${a.time} (${a.durationMin} min) with ${[...a.attendees.map((x) => x.name), ...(a.guests || []).map((g) => g.name || g.email)].join(', ')}${a.location ? ` at ${a.location}` : ''}`;
       if (a.type === 'task') return `Added task "${a.task.title}" ${a.task.date} ${a.task.time}`;
       return '';
     })
@@ -1195,7 +1280,7 @@ app.post('/api/assistant', auth, h(async (req, res) => {
 
   const [contacts, connections, memories, historyRows, tasks, meetings] = await Promise.all([
     query('SELECT id, name, email, phone, group_name FROM contacts WHERE user_id = $1 ORDER BY name LIMIT 500', [req.user.id]),
-    connectedUsers(req.user.id),
+    invitableUsers(req.user.id),
     query('SELECT id, content FROM memories WHERE user_id = $1 ORDER BY created_at LIMIT $2', [req.user.id, MEMORY_MAX]),
     query('SELECT role, content FROM assistant_messages WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2', [req.user.id, HISTORY_SENT]),
     query(`SELECT * FROM tasks WHERE user_id = $1 AND NOT done AND date >= $2 AND date <= $3 ORDER BY date, time LIMIT 80`, [req.user.id, today, horizon]),
@@ -1261,7 +1346,16 @@ app.post('/api/assistant', auth, h(async (req, res) => {
     } else if (a?.type === 'meeting') {
       const ids = new Set(Array.isArray(a.attendees) ? a.attendees : []);
       const attendees = connections.filter((c) => ids.has(c.id)).map((c) => ({ id: c.id, name: c.name }));
-      const m = cleanMeeting({ ...a, attendeeIds: attendees.map((x) => x.id) });
+      // Guests: saved contacts with an email, or addresses said out loud; never someone already attending.
+      const guests = (Array.isArray(a.guests) ? a.guests : [])
+        .map((g) => {
+          const c = contacts.find((x) => x.id === g && x.email);
+          if (c) return { email: c.email, name: c.name };
+          const email = String(g).trim().toLowerCase();
+          return EMAIL_RE.test(email) ? { email, name: '' } : null;
+        })
+        .filter((g) => g && !connections.some((c) => attendees.some((x) => x.id === c.id) && c.email === g.email));
+      const m = cleanMeeting({ ...a, attendeeIds: attendees.map((x) => x.id), guests });
       if (!DATE_RE.test(m.date)) m.date = today;
       if (m.time && !TIME_RE.test(m.time)) m.time = '';
       actions.push({
@@ -1274,6 +1368,7 @@ app.post('/api/assistant', auth, h(async (req, res) => {
         location: m.location,
         notes: m.notes,
         attendees,
+        guests: m.guests,
         unmatched: (Array.isArray(a.unmatched) ? a.unmatched : []).map(String).slice(0, 10),
         conflicts: await findConflicts(req.user, m, [req.user.id, ...attendees.map((x) => x.id)]),
       });

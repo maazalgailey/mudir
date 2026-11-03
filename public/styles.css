@@ -909,6 +909,14 @@ main { padding: 0 16px; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
 .setting-row:first-of-type { border-top: 0; }
 
+.add-person { display: flex; gap: 6px; width: 100%; align-items: center; }
+.add-person input {
+  flex: 1; min-width: 0; border: 1px dashed var(--line); background: var(--surface); border-radius: 999px;
+  padding: 9px 14px; font-size: 16px; color: var(--ink); outline: none; min-height: 42px;
+}
+.add-person input:focus { border-style: solid; }
+@media (min-width: 960px) { .add-person input { font-size: 0.92rem; } }
+
 /* =========================================================
    Zajel luxury layer: Notion's structure, the brand's obsidian, ivory and champagne
    ========================================================= */
@@ -971,7 +979,7 @@ main { padding: 0 16px; }
 .cal-top h1, .page-head h1 { font-weight: 600; }
 .eyebrow { letter-spacing: 0.02em; color: var(--gold-ink); font-weight: 500; }
 :focus-visible { outline-color: var(--gold); }
-.field input:focus, .field textarea:focus, .field select:focus, .prop-input:focus, .search:focus-within, .add-row:focus-within {
+.field input:focus, .field textarea:focus, .field select:focus, .prop-input:focus, .search:focus-within, .add-row:focus-within, .add-person input:focus {
   border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft);
 }
 
@@ -981,19 +989,27 @@ main { padding: 0 16px; }
 .btn.ghost { background: var(--surface); }
 .go-btn { background: var(--ink-strong); color: var(--bg); }
 
-/* Obsidian sidebar (laptop), like the landing page */
+/* The wordmark is the logo: ZAJEL in wide-spaced Montserrat, black on light surfaces */
+.brand.wordmark {
+  font-family: 'Montserrat', sans-serif; font-weight: 600; letter-spacing: 0.34em; font-size: 1.05rem;
+  color: var(--ink-strong); direction: ltr; text-transform: uppercase; line-height: 1;
+}
+.auth-hero .brand.wordmark { color: #fff; font-size: 1.3rem; text-shadow: 0 6px 18px rgba(0, 0, 0, 0.6); }
+
+/* Light, Notion-style sidebar (laptop) with the black wordmark and champagne accents */
 @media (min-width: 960px) {
-  .sidebar { background: var(--sidebar); border-inline-end: 0; color: #ede8df; padding: 20px 12px; }
-  .sidebar .brand { color: #f5f1ea; font-family: 'Montserrat', 'IBM Plex Sans Arabic', sans-serif; letter-spacing: 0.28em; font-weight: 600; font-size: 1rem; padding: 6px 8px 14px; }
-  [dir='rtl'] .sidebar .brand { letter-spacing: 0.04em; }
-  .sidebar .brand img { border-radius: 9px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
-  .nav-item { color: rgba(237, 232, 223, 0.6); border-radius: 10px; }
-  .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #f5f1ea; }
-  .nav-item.active { background: rgba(201, 169, 110, 0.14); color: #f5f1ea; box-shadow: inset 2px 0 0 #c9a96e; }
-  [dir='rtl'] .nav-item.active { box-shadow: inset -2px 0 0 #c9a96e; }
-  .sidebar .lang-btn { color: rgba(237, 232, 223, 0.55); }
-  .sidebar .lang-btn:hover { color: #f5f1ea; background: rgba(255, 255, 255, 0.05); }
+  .sidebar { background: #f4f2ed; border-inline-end: 1px solid var(--line-soft); padding: 22px 12px; }
+  .sidebar .brand.wordmark { padding: 8px 10px 18px; }
+  .nav-item { color: var(--muted); border-radius: 10px; }
+  .nav-item:hover { background: rgba(28, 25, 20, 0.05); color: var(--ink-strong); }
+  .nav-item.active { background: #fff; color: var(--ink-strong); box-shadow: 0 1px 2px rgba(20, 16, 10, 0.06), 0 0 0 1px var(--line-soft); }
+  .nav-item.active .ic { color: var(--gold); }
   main { max-width: 1160px; }
+}
+@media (min-width: 960px) and (prefers-color-scheme: dark) {
+  .sidebar { background: #101011; }
+  .nav-item:hover { background: rgba(242, 238, 230, 0.05); }
+  .nav-item.active { background: rgba(242, 238, 230, 0.07); box-shadow: 0 0 0 1px var(--line-soft); }
 }
 
 /* Champagne voice orb and ask bar */
@@ -1064,8 +1080,6 @@ main { padding: 0 16px; }
 .auth-hero { background: radial-gradient(ellipse 80% 60% at 50% 35%, #262626 0%, #121212 50%, #050505 100%); color: #f2eee6; }
 .auth-hero h1, .auth-hero .brand { color: #f5f1ea; }
 .auth-hero p { color: rgba(242, 238, 230, 0.7); }
-.auth-hero .brand span { font-family: 'Montserrat', 'IBM Plex Sans Arabic', sans-serif; letter-spacing: 0.3em; font-weight: 600; }
-[dir='rtl'] .auth-hero .brand span { letter-spacing: 0.04em; }
 .auth-hero .bubble.mudir { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); color: #f2eee6; }
 .auth-hero .bubble.me { background: #f2eee6; color: #0b0b0c; }
 .auth-hero .bubble .ic { color: #d9bd86; }

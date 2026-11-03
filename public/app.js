@@ -103,6 +103,18 @@ const I18N = {
     remove: 'إزالة',
     meetingBtn: 'اجتماع',
     newMeeting: 'اجتماع جديد',
+    addSomeone: 'إضافة',
+    addSomeonePh: 'أضف شخصًا ببريده الإلكتروني',
+    addSomeoneHelp: 'إن كان في زاجل تصله الدعوة في تقويمه، وإلا تصله دعوة بالبريد.',
+    requested: 'طلب مُرسل',
+    addedToMeeting: 'أُضيف {name} إلى الاجتماع',
+    addedRequested: 'أُرسل طلب تواصل إلى {name} وأُضيف إلى الاجتماع',
+    addedGuest: '{email} ليس في زاجل بعد، وسيُدعى بالبريد',
+    needPerson: 'أضف شخصًا واحدًا على الأقل',
+    inviteSentGuests: 'أُرسلت الدعوة، ودعوات بالبريد إلى {n}',
+    guestsToSend: 'أرسل الدعوة بالبريد إلى هؤلاء:',
+    meetingSaved: 'تم حفظ الاجتماع',
+    notFoundAdd: 'لم أجد: {names}. أضفهم ببريدهم أدناه.',
     meetingTitle: 'عنوان الاجتماع',
     fTime: 'الوقت',
     duration: 'المدة (دقيقة)',
@@ -429,6 +441,18 @@ const I18N = {
     remove: 'Remove',
     meetingBtn: 'Meeting',
     newMeeting: 'New meeting',
+    addSomeone: 'Add',
+    addSomeonePh: 'Add someone by email',
+    addSomeoneHelp: "If they're on Zajel the invitation lands on their calendar; otherwise they get an email invitation.",
+    requested: 'Requested',
+    addedToMeeting: '{name} added to the meeting',
+    addedRequested: 'Connection request sent to {name}, and added to the meeting',
+    addedGuest: "{email} isn't on Zajel yet and will be invited by email",
+    needPerson: 'Add at least one person',
+    inviteSentGuests: 'Invitation sent, plus email invitations to {n}',
+    guestsToSend: 'Send the email invitation to:',
+    meetingSaved: 'Meeting saved',
+    notFoundAdd: "Couldn't find: {names}. Add them by email below.",
     meetingTitle: 'Meeting title',
     fTime: 'Time',
     duration: 'Duration (min)',
@@ -1359,29 +1383,62 @@ document.addEventListener('click', async (e) => {
   }
 });
 
-// New meeting form
+// New meeting form. What the user types lives in a draft, so adding someone mid-way (or closing
+// the sheet by accident) never loses the meeting they were setting up.
 let meetingFormKey = null;
 let conflictTimer = null;
+let mfDraft = null;
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const acceptedConnections = () => state.connections.filter((c) => c.status === 'accepted').map((c) => c.user);
+// People who can be invited: accepted connections plus anyone I've just sent a request to.
+const invitableConnections = () =>
+  state.connections.filter((c) => c.status === 'accepted' || c.direction === 'out').map((c) => ({ ...c.user, pending: c.status !== 'accepted' }));
+
+// Add someone by email without leaving the meeting: a Zajel user becomes an attendee (sending a
+// connection request if needed); anyone else becomes an email guest.
+async function addPersonByEmail(raw) {
+  const email = String(raw || '').trim().toLowerCase();
+  if (!EMAIL_OK.test(email)) throw new Error(t('invalidEmail'));
+  const known = state.connections.find((c) => c.user.email.toLowerCase() === email && (c.status === 'accepted' || c.direction === 'out'));
+  if (known) return { type: 'user', user: known.user, requested: known.status !== 'accepted' };
+  try {
+    state.connections = (await api('/api/connections', { method: 'POST', body: { email } })).connections;
+    state.notif.requests = state.connections.filter((c) => c.status === 'pending' && c.direction === 'in').length;
+    updateBadges();
+    const c = state.connections.find((x) => x.user.email.toLowerCase() === email);
+    return { type: 'user', user: c.user, requested: c.status !== 'accepted' };
+  } catch (err) {
+    if (err.status !== 404) throw err;
+    const contact = state.contacts.find((x) => x.email === email);
+    return { type: 'guest', guest: { email, name: contact?.name || '' } };
+  }
+}
 
 function openMeetingForm({ date, attendeeIds = [] } = {}) {
+  const day = date || today();
+  // Reopening the same day brings back what was typed, unless a specific person was picked.
+  if (!mfDraft || mfDraft.date !== day || attendeeIds.length) {
+    mfDraft = { date: day, title: '', time: '', durationMin: 30, location: '', notes: '', attendeeIds: [...attendeeIds], guests: [], key: newKey() };
+  }
   const f = $('#meeting-form');
-  f.reset();
-  meetingFormKey = newKey();
-  f.date.value = date || today();
-  const people = acceptedConnections();
-  $('#mf-attendees').innerHTML = people.length
-    ? people.map((p) => `<label><input type="checkbox" name="attendee" value="${p.id}" ${attendeeIds.includes(p.id) ? 'checked' : ''} />${esc(p.name)}</label>`).join('')
-    : `<div class="callout">${icon('alert')}<span>${esc(t('connectFirst'))} <a href="#people" data-view="people">${esc(t('connect'))}</a></span></div>`;
+  f.title.value = mfDraft.title;
+  f.date.value = mfDraft.date;
+  f.time.value = mfDraft.time;
+  f.durationMin.value = String(mfDraft.durationMin);
+  f.location.value = mfDraft.location;
+  f.notes.value = mfDraft.notes;
+  meetingFormKey = mfDraft.key;
+  renderMfPeople();
   $('#mf-conflicts').innerHTML = '';
-  f.querySelector('[type=submit]').disabled = !people.length;
+  checkMfConflicts();
   openSheet('sheet-meeting-form');
   if (matchMedia('(hover: hover)').matches) setTimeout(() => f.title.focus(), 150);
 }
 
-function meetingFormValues() {
+function syncMfDraft() {
+  if (!mfDraft) return null;
   const f = $('#meeting-form');
-  return {
+  Object.assign(mfDraft, {
     title: f.title.value,
     date: f.date.value,
     time: f.time.value,
@@ -1389,38 +1446,118 @@ function meetingFormValues() {
     location: f.location.value,
     notes: f.notes.value,
     attendeeIds: $$('input[name=attendee]:checked', f).map((x) => x.value),
-  };
+  });
+  return mfDraft;
 }
 
-$('#meeting-form').addEventListener('change', () => {
+function renderMfPeople() {
+  const people = invitableConnections();
+  const chips = people
+    .map((p) => `<label><input type="checkbox" name="attendee" value="${p.id}" ${mfDraft.attendeeIds.includes(p.id) ? 'checked' : ''} />${esc(p.name)}${p.pending ? ` <span class="status-pill pending">${esc(t('requested'))}</span>` : ''}</label>`)
+    .join('');
+  const guests = mfDraft.guests
+    .map((g, i) => `<span class="rcpt" title="${esc(g.email)}">${icon('mail')}${esc(g.name || g.email)}<button type="button" data-rm-guest="${i}" aria-label="${esc(t('remove'))}">${icon('x')}</button></span>`)
+    .join('');
+  $('#mf-attendees').innerHTML = `${chips}${guests}
+    <div class="add-person">
+      <input type="text" inputmode="email" autocomplete="email" dir="ltr" data-add-email placeholder="${esc(t('addSomeonePh'))}" />
+      <button type="button" class="btn ghost" data-add-go>${icon('user-plus')}${esc(t('addSomeone'))}</button>
+    </div>
+    <p class="muted small" style="width:100%">${esc(t('addSomeoneHelp'))}</p>`;
+}
+
+function checkMfConflicts() {
   clearTimeout(conflictTimer);
   conflictTimer = setTimeout(async () => {
-    const v = meetingFormValues();
-    if (!v.date || !v.time) return;
+    const v = syncMfDraft();
+    if (!v?.date || !v.time) return;
     try {
       $('#mf-conflicts').innerHTML = conflictsHtml((await api('/api/meetings/check', { method: 'POST', body: v })).conflicts);
     } catch { /* the check is advisory */ }
   }, 300);
+}
+
+async function addFromMfInput() {
+  syncMfDraft();
+  const input = $('#mf-attendees [data-add-email]');
+  const btn = $('#mf-attendees [data-add-go]');
+  if (!input.value.trim()) return input.focus();
+  busy(btn, true);
+  try {
+    const r = await addPersonByEmail(input.value);
+    if (r.type === 'user') {
+      if (!mfDraft.attendeeIds.includes(r.user.id)) mfDraft.attendeeIds.push(r.user.id);
+      toast(t(r.requested ? 'addedRequested' : 'addedToMeeting', { name: r.user.name }));
+    } else {
+      if (!mfDraft.guests.some((g) => g.email === r.guest.email)) mfDraft.guests.push(r.guest);
+      toast(t('addedGuest', { email: r.guest.email }));
+    }
+    renderMfPeople();
+    checkMfConflicts();
+    $('#mf-attendees [data-add-email]').focus();
+  } catch (err) {
+    toast(err.message, true);
+    busy(btn, false);
+  }
+}
+
+$('#mf-attendees').addEventListener('click', (e) => {
+  const rm = e.target.closest('[data-rm-guest]');
+  if (rm) {
+    syncMfDraft();
+    mfDraft.guests.splice(Number(rm.dataset.rmGuest), 1);
+    return renderMfPeople();
+  }
+  if (e.target.closest('[data-add-go]')) addFromMfInput();
+});
+$('#mf-attendees').addEventListener('keydown', (e) => {
+  if (e.target.matches('[data-add-email]') && e.key === 'Enter') {
+    e.preventDefault(); // Enter here adds the person; it must not send the invitation
+    addFromMfInput();
+  }
+});
+$('#meeting-form').addEventListener('input', () => syncMfDraft());
+$('#meeting-form').addEventListener('change', (e) => {
+  if (!e.target.matches('[data-add-email]')) checkMfConflicts();
 });
 
 $('#meeting-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector('[type=submit]');
-  const v = meetingFormValues();
-  if (!v.attendeeIds.length) return toast(t('connectFirst'), true);
+  const v = { ...syncMfDraft() };
+  if (!v.attendeeIds.length && !v.guests.length) return toast(t('needPerson'), true);
   busy(btn, true, t('sending'));
   try {
-    await api('/api/meetings', { method: 'POST', body: { ...v, key: meetingFormKey } });
+    const res = await api('/api/meetings', { method: 'POST', body: { ...v, key: meetingFormKey } });
+    mfDraft = null;
     state.meetingsRange = '';
     closeSheets();
     render();
-    toast(t('inviteSent'));
+    afterMeetingSent(res);
   } catch (err) {
     toast(err.message, true);
   } finally {
     busy(btn, false);
   }
 });
+
+// After sending: confirm, and for guests whose email couldn't go out automatically, offer it ready to send.
+function afterMeetingSent(res, container) {
+  const notSent = res.guests?.notSent || [];
+  const sent = res.guests?.sent?.length || 0;
+  toast(sent ? t('inviteSentGuests', { n: sent }) : t('inviteSent'));
+  if (!notSent.length) return '';
+  const html = `<div class="callout blue">${icon('mail')}<div class="grow"><strong>${esc(t('guestsToSend'))}</strong>
+    ${notSent.map((g) => `<div class="row gap wrap" style="margin-top:6px"><span class="grow" dir="ltr" style="text-align:start">${esc(g.name ? `${g.name} <${g.email}>` : g.email)}</span>
+      <a class="btn sm" target="_blank" rel="noopener" href="${esc(`https://mail.google.com/mail/?${new URLSearchParams({ view: 'cm', fs: '1', to: g.email, su: g.subject, body: g.body })}`)}">${icon('external')}Gmail</a>
+      <a class="btn sm" href="${esc(`mailto:${g.email}?subject=${encodeURIComponent(g.subject)}&body=${encodeURIComponent(g.body)}`)}">${icon('mail')}${esc(t('mailApp'))}</a></div>`).join('')}
+  </div></div>`;
+  if (container) return html;
+  $('#meeting-body').innerHTML = `<div class="stack"><div class="sheet-head"><h3>${esc(t('meetingSaved'))}</h3>
+    <button class="icon-btn lg" type="button" data-close aria-label="${esc(t('close'))}">${icon('x')}</button></div>${html}</div>`;
+  openSheet('sheet-meeting');
+  return '';
+}
 
 $('#day-meeting').addEventListener('click', () => openMeetingForm({ date: state.calDay }));
 
@@ -1962,13 +2099,16 @@ function renderMessageCard(m) {
 // A prepared meeting: review time, people and clashes, then send the invitation.
 function renderMeetingCard(meeting) {
   const attendees = [...meeting.attendees];
+  const guests = [...(meeting.guests || [])];
   const card = document.createElement('div');
   card.className = 'as-card';
-  const people = acceptedConnections();
+  const people = () => invitableConnections().filter((p) => !attendees.some((a) => a.id === p.id));
 
   function draw() {
+    const others = people();
+    const total = attendees.length + guests.length;
     card.innerHTML = `
-      <div class="row gap"><svg class="ic" style="color:var(--purple-t)"><use href="#i-meeting"/></svg><input class="prop-input wide strong" data-f="title" value="${esc(meeting.title)}" dir="auto" style="font-size:1.05rem" /></div>
+      <div class="row gap"><svg class="ic" style="color:var(--gold)"><use href="#i-meeting"/></svg><input class="prop-input wide strong" data-f="title" value="${esc(meeting.title)}" dir="auto" style="font-size:1.05rem" /></div>
       <div class="row gap wrap">
         <label class="field grow"><span>${esc(t('fDate'))}</span><input type="date" data-f="date" value="${esc(meeting.date)}" /></label>
         <label class="field grow"><span>${esc(t('fTime'))}</span><input type="time" data-f="time" value="${esc(meeting.time)}" /></label>
@@ -1976,20 +2116,54 @@ function renderMeetingCard(meeting) {
       </div>
       <div><div class="label">${esc(t('attendees'))}</div>
         <div class="rcpts">${attendees.map((a, i) => `<span class="rcpt">${esc(a.name)}<button type="button" data-rm="${i}" aria-label="${esc(t('remove'))}">${icon('x')}</button></span>`).join('')}
-          ${people.filter((p) => !attendees.some((a) => a.id === p.id)).length
-            ? `<select class="prop-input" data-add-att><option value="">+</option>${people.filter((p) => !attendees.some((a) => a.id === p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>`
-            : ''}
+          ${guests.map((g, i) => `<span class="rcpt" title="${esc(g.email)}">${icon('mail')}${esc(g.name || g.email)}<button type="button" data-rm-guest="${i}" aria-label="${esc(t('remove'))}">${icon('x')}</button></span>`).join('')}
+          ${others.length ? `<select class="prop-input" data-add-att><option value="">+</option>${others.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>` : ''}
         </div>
-        ${meeting.unmatched?.length ? `<div class="callout yellow" style="margin-top:8px">${icon('alert')}<span>${esc(t('notFound', { names: meeting.unmatched.join('، ') }))} · <a href="#people" data-view="people">${esc(t('connect'))}</a></span></div>` : ''}
+        ${meeting.unmatched?.length ? `<div class="callout yellow" style="margin-top:8px">${icon('alert')}<span>${esc(t('notFoundAdd', { names: meeting.unmatched.join('، ') }))}</span></div>` : ''}
+        <div class="add-person" style="margin-top:8px">
+          <input type="text" inputmode="email" autocomplete="email" dir="ltr" data-add-email placeholder="${esc(t('addSomeonePh'))}" />
+          <button type="button" class="btn ghost" data-add-go>${icon('user-plus')}${esc(t('addSomeone'))}</button>
+        </div>
       </div>
       ${meeting.location ? `<p class="muted small row gap">${icon('pin')}<span dir="auto">${esc(meeting.location)}</span></p>` : ''}
       <div data-conflicts>${conflictsHtml(meeting.conflicts)}</div>
       <div class="as-actions">
-        <button class="btn primary xl" data-send-meeting ${attendees.length ? '' : 'disabled'}>${icon('send')}${esc(t('sendInvite'))}</button>
+        <button class="btn primary xl" data-send-meeting ${total ? '' : 'disabled'}>${icon('send')}${esc(t('sendInvite'))}</button>
         <button class="btn quiet lg" data-cancel>${esc(t('cancel'))}</button>
       </div>`;
   }
   draw();
+
+  // Add someone by email right here, keeping everything else in this meeting as it is.
+  async function addFromCard() {
+    const input = card.querySelector('[data-add-email]');
+    const btn = card.querySelector('[data-add-go]');
+    if (!input.value.trim()) return input.focus();
+    busy(btn, true);
+    try {
+      const r = await addPersonByEmail(input.value);
+      if (r.type === 'user') {
+        if (!attendees.some((a) => a.id === r.user.id)) attendees.push({ id: r.user.id, name: r.user.name });
+        toast(t(r.requested ? 'addedRequested' : 'addedToMeeting', { name: r.user.name }));
+      } else {
+        if (!guests.some((g) => g.email === r.guest.email)) guests.push(r.guest);
+        toast(t('addedGuest', { email: r.guest.email }));
+      }
+      meeting.unmatched = [];
+      draw();
+      recheck();
+      card.querySelector('[data-add-email]').focus();
+    } catch (err) {
+      toast(err.message, true);
+      busy(btn, false);
+    }
+  }
+  card.addEventListener('keydown', (e) => {
+    if (e.target.matches('[data-add-email]') && e.key === 'Enter') {
+      e.preventDefault();
+      addFromCard();
+    }
+  });
 
   let checkTimer = null;
   const recheck = () => {
@@ -2010,7 +2184,7 @@ function renderMeetingCard(meeting) {
       if (f !== 'title') recheck();
     }
     if (e.target.matches('[data-add-att]') && e.target.value) {
-      const p = people.find((x) => x.id === e.target.value);
+      const p = people().find((x) => x.id === e.target.value);
       if (p) attendees.push({ id: p.id, name: p.name });
       draw();
       recheck();
@@ -2023,6 +2197,12 @@ function renderMeetingCard(meeting) {
       draw();
       return recheck();
     }
+    const rmGuest = e.target.closest('[data-rm-guest]');
+    if (rmGuest) {
+      guests.splice(Number(rmGuest.dataset.rmGuest), 1);
+      return draw();
+    }
+    if (e.target.closest('[data-add-go]')) return addFromCard();
     if (e.target.closest('[data-cancel]')) {
       card.innerHTML = `<p class="muted">${esc(t('cancelled'))}</p>`;
       return;
@@ -2031,8 +2211,8 @@ function renderMeetingCard(meeting) {
     if (send) {
       busy(send, true, t('sending'));
       try {
-        await api('/api/meetings', { method: 'POST', body: { ...meeting, attendeeIds: attendees.map((a) => a.id), key: meeting.key } });
-        card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('inviteSent'))}</div>`;
+        const res = await api('/api/meetings', { method: 'POST', body: { ...meeting, attendeeIds: attendees.map((a) => a.id), guests, key: meeting.key } });
+        card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('inviteSent'))}</div>${afterMeetingSent(res, card)}`;
         speak(t('inviteSent'));
         state.meetingsRange = '';
         render();
