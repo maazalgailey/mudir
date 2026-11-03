@@ -59,6 +59,14 @@ const MSG = {
     draftLimit: 'وصلت إلى الحد الشهري للباقة المجانية. اشترك في مُدير برو للاستمرار.',
     assistantEmpty: 'قل أو اكتب ما تريد',
     noSpeechHeard: 'لم أسمع شيئًا، حاول مرة أخرى',
+    notOnMudir: 'لا يوجد حساب في مُدير بهذا البريد بعد. أرسل له دعوة للانضمام.',
+    cantConnectSelf: 'هذا بريدك أنت',
+    connectionNotFound: 'طلب الاتصال غير موجود',
+    notConnected: 'يمكنك دعوة الأشخاص المتصلين بك في مُدير فقط',
+    meetingNotFound: 'الاجتماع غير موجود',
+    onlyOrganizer: 'منظّم الاجتماع فقط يمكنه ذلك',
+    invalidDate: 'التاريخ أو الوقت غير صالح',
+    alreadyDone: 'تم تنفيذ هذا مسبقًا، لن يُكرَّر',
     transcribeFailed: 'تعذّر تحويل الصوت إلى نص، حاول مرة أخرى',
     sendPartial: 'أُرسلت {sent} من {total} رسائل، ثم حدث خطأ.',
     tooManyRecipients: 'يمكن الإرسال إلى {max} شخصًا كحد أقصى في المرة الواحدة.',
@@ -101,6 +109,14 @@ const MSG = {
     draftLimit: "You've reached this month's free limit. Upgrade to Mudir Pro to keep going.",
     assistantEmpty: 'Say or type what you need',
     noSpeechHeard: "I didn't hear anything. Please try again.",
+    notOnMudir: "There's no Mudir account with this email yet. Send them an invite to join.",
+    cantConnectSelf: "That's your own email",
+    connectionNotFound: 'Connection request not found',
+    notConnected: 'You can only invite people you are connected with on Mudir',
+    meetingNotFound: 'Meeting not found',
+    onlyOrganizer: 'Only the organizer can do that',
+    invalidDate: 'The date or time is not valid',
+    alreadyDone: 'This was already done, so it was not repeated',
     transcribeFailed: "Couldn't turn your voice into text. Please try again.",
     sendPartial: 'Sent {sent} of {total} emails, then something went wrong.',
     tooManyRecipients: 'You can send to at most {max} people at once.',
@@ -489,6 +505,222 @@ app.delete('/api/contacts/:id', auth, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- Activity log and one-time action keys ----------
+async function audit(userId, action, detail = {}) {
+  try {
+    await query('INSERT INTO audit_log (id, user_id, action, detail) VALUES ($1, $2, $3, $4)', [id(), userId, action, JSON.stringify(detail)]);
+  } catch (err) {
+    console.error('Audit log failed:', err.message);
+  }
+}
+
+// Returns false when this key was already used, so a double tap or retry never repeats an action.
+async function claimKey(userId, key) {
+  if (!key) return true;
+  const rows = await query('INSERT INTO action_keys (user_id, key) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING key', [userId, String(key).slice(0, 100)]);
+  return rows.length > 0;
+}
+async function releaseKey(userId, key) {
+  if (key) await query('DELETE FROM action_keys WHERE user_id = $1 AND key = $2', [userId, String(key).slice(0, 100)]);
+}
+
+// ---------- Connections (other Mudir accounts) ----------
+async function connectionsOf(userId) {
+  return query(
+    `SELECT c.id, c.status, c.requester_id, c.created_at, u.id AS other_id, u.name AS other_name, u.email AS other_email
+     FROM connections c
+     JOIN users u ON u.id = CASE WHEN c.requester_id = $1 THEN c.addressee_id ELSE c.requester_id END
+     WHERE c.requester_id = $1 OR c.addressee_id = $1
+     ORDER BY u.name`,
+    [userId],
+  );
+}
+
+async function connectedUsers(userId) {
+  return (await connectionsOf(userId)).filter((c) => c.status === 'accepted').map((c) => ({ id: c.other_id, name: c.other_name, email: c.other_email }));
+}
+
+function connectionOut(c, userId) {
+  return {
+    id: c.id,
+    status: c.status,
+    direction: c.requester_id === userId ? 'out' : 'in',
+    user: { id: c.other_id, name: c.other_name, email: c.other_email },
+  };
+}
+
+app.get('/api/connections', auth, h(async (req, res) => {
+  res.json({ connections: (await connectionsOf(req.user.id)).map((c) => connectionOut(c, req.user.id)) });
+}));
+
+app.post('/api/connections', auth, h(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return fail(res, 400, msg(req, 'invalidEmail'));
+  const other = await one('SELECT id, name, email FROM users WHERE email = $1 OR google_email = $1 LIMIT 1', [email]);
+  if (!other) return fail(res, 404, msg(req, 'notOnMudir'));
+  if (other.id === req.user.id) return fail(res, 400, msg(req, 'cantConnectSelf'));
+  const existing = await one(
+    'SELECT * FROM connections WHERE (requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1)',
+    [req.user.id, other.id],
+  );
+  if (existing) {
+    // They already asked us: sending a request back simply accepts theirs.
+    if (existing.status === 'pending' && existing.addressee_id === req.user.id) {
+      await query(`UPDATE connections SET status = 'accepted' WHERE id = $1`, [existing.id]);
+      await audit(req.user.id, 'connection.accept', { with: other.id });
+    }
+  } else {
+    await query('INSERT INTO connections (id, requester_id, addressee_id) VALUES ($1, $2, $3)', [id(), req.user.id, other.id]);
+    await audit(req.user.id, 'connection.request', { to: other.id });
+  }
+  res.json({ connections: (await connectionsOf(req.user.id)).map((c) => connectionOut(c, req.user.id)) });
+}));
+
+app.post('/api/connections/:id/accept', auth, h(async (req, res) => {
+  const rows = await query(`UPDATE connections SET status = 'accepted' WHERE id = $1 AND addressee_id = $2 RETURNING id`, [req.params.id, req.user.id]);
+  if (!rows.length) return fail(res, 404, msg(req, 'connectionNotFound'));
+  await audit(req.user.id, 'connection.accept', { connection: req.params.id });
+  res.json({ connections: (await connectionsOf(req.user.id)).map((c) => connectionOut(c, req.user.id)) });
+}));
+
+// Decline, cancel or remove, by either side.
+app.delete('/api/connections/:id', auth, h(async (req, res) => {
+  const rows = await query('DELETE FROM connections WHERE id = $1 AND (requester_id = $2 OR addressee_id = $2) RETURNING id', [req.params.id, req.user.id]);
+  if (!rows.length) return fail(res, 404, msg(req, 'connectionNotFound'));
+  await audit(req.user.id, 'connection.remove', { connection: req.params.id });
+  res.json({ connections: (await connectionsOf(req.user.id)).map((c) => connectionOut(c, req.user.id)) });
+}));
+
+// ---------- Meetings ----------
+const toMin = (time) => (TIME_RE.test(time) ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3)) : null);
+
+async function meetingsFor(userId, from, to) {
+  const rows = await query(
+    `SELECT m.*, o.name AS organizer_name,
+       COALESCE(json_agg(json_build_object('id', a.user_id, 'name', au.name, 'response', a.response)) FILTER (WHERE a.user_id IS NOT NULL), '[]') AS attendees
+     FROM meetings m
+     JOIN users o ON o.id = m.organizer_id
+     LEFT JOIN meeting_attendees a ON a.meeting_id = m.id
+     LEFT JOIN users au ON au.id = a.user_id
+     WHERE m.status = 'active' AND m.date >= $2 AND m.date <= $3
+       AND (m.organizer_id = $1 OR EXISTS (SELECT 1 FROM meeting_attendees x WHERE x.meeting_id = m.id AND x.user_id = $1))
+     GROUP BY m.id, o.name
+     ORDER BY m.date, m.time`,
+    [userId, from, to],
+  );
+  return rows.map((m) => meetingOut(m, userId));
+}
+
+function meetingOut(m, userId) {
+  const attendees = typeof m.attendees === 'string' ? JSON.parse(m.attendees) : m.attendees || [];
+  const mine = attendees.find((a) => a.id === userId);
+  return {
+    id: m.id,
+    title: m.title,
+    notes: m.notes,
+    date: m.date,
+    time: m.time,
+    durationMin: m.duration_min,
+    location: m.location,
+    organizer: { id: m.organizer_id, name: m.organizer_name },
+    isOrganizer: m.organizer_id === userId,
+    myResponse: m.organizer_id === userId ? 'accepted' : mine?.response || 'pending',
+    attendees,
+  };
+}
+
+// Clashes for everyone involved. Other people's items only ever show as "busy", never their titles.
+async function findConflicts(me, { date, time, durationMin }, participantIds, excludeMeetingId = null) {
+  const start = toMin(time);
+  if (start == null || !DATE_RE.test(date)) return [];
+  const end = start + (durationMin || 30);
+  const overlaps = (t, dur) => {
+    const s = toMin(t);
+    return s != null && s < end && s + dur > start;
+  };
+  const conflicts = [];
+  for (const uid of [...new Set(participantIds)]) {
+    const person = uid === me.id ? me : await one('SELECT id, name FROM users WHERE id = $1', [uid]);
+    if (!person) continue;
+    for (const m of await meetingsFor(uid, date, date)) {
+      if (m.id === excludeMeetingId || m.myResponse === 'declined' || !overlaps(m.time, m.durationMin)) continue;
+      conflicts.push({ userId: uid, name: person.name, time: m.time, title: uid === me.id ? m.title : null });
+    }
+    for (const t of await query(`SELECT title, time FROM tasks WHERE user_id = $1 AND date = $2 AND time <> '' AND NOT done`, [uid, date])) {
+      if (overlaps(t.time, 30)) conflicts.push({ userId: uid, name: person.name, time: t.time, title: uid === me.id ? t.title : null });
+    }
+  }
+  return conflicts;
+}
+
+function cleanMeeting(body) {
+  return {
+    title: String(body.title || '').trim().slice(0, 200),
+    notes: String(body.notes || '').slice(0, 4000),
+    date: String(body.date || ''),
+    time: String(body.time || ''),
+    durationMin: Math.min(Math.max(parseInt(body.durationMin, 10) || 30, 5), 600),
+    location: String(body.location || '').trim().slice(0, 200),
+    attendeeIds: [...new Set((Array.isArray(body.attendeeIds) ? body.attendeeIds : []).map(String))].slice(0, 50),
+  };
+}
+
+app.get('/api/meetings', auth, h(async (req, res) => {
+  const from = DATE_RE.test(req.query.from) ? req.query.from : '0000-01-01';
+  const to = DATE_RE.test(req.query.to) ? req.query.to : '9999-12-31';
+  res.json({ meetings: await meetingsFor(req.user.id, from, to) });
+}));
+
+app.post('/api/meetings/check', auth, h(async (req, res) => {
+  const m = cleanMeeting(req.body);
+  res.json({ conflicts: await findConflicts(req.user, m, [req.user.id, ...m.attendeeIds]) });
+}));
+
+app.post('/api/meetings', auth, h(async (req, res) => {
+  const m = cleanMeeting(req.body);
+  if (!m.title) return fail(res, 400, msg(req, 'titleRequired'));
+  if (!DATE_RE.test(m.date) || (m.time && !TIME_RE.test(m.time))) return fail(res, 400, msg(req, 'invalidDate'));
+  const allowed = new Set((await connectedUsers(req.user.id)).map((u) => u.id));
+  if (!m.attendeeIds.length || !m.attendeeIds.every((a) => allowed.has(a))) return fail(res, 400, msg(req, 'notConnected'));
+  if (!(await claimKey(req.user.id, req.body.key))) return fail(res, 409, msg(req, 'alreadyDone'));
+
+  const conflicts = await findConflicts(req.user, m, [req.user.id, ...m.attendeeIds]);
+  const meetingId = id();
+  await query(
+    `INSERT INTO meetings (id, organizer_id, title, notes, date, time, duration_min, location) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [meetingId, req.user.id, m.title, m.notes, m.date, m.time, m.durationMin, m.location],
+  );
+  for (const uid of m.attendeeIds) await query('INSERT INTO meeting_attendees (meeting_id, user_id) VALUES ($1, $2)', [meetingId, uid]);
+  await audit(req.user.id, 'meeting.create', { meeting: meetingId, attendees: m.attendeeIds.length, date: m.date });
+  const [meeting] = (await meetingsFor(req.user.id, m.date, m.date)).filter((x) => x.id === meetingId);
+  res.json({ meeting, conflicts });
+}));
+
+app.post('/api/meetings/:id/respond', auth, h(async (req, res) => {
+  const response = ['accepted', 'declined'].includes(req.body.response) ? req.body.response : null;
+  if (!response) return fail(res, 400, msg(req, 'notAvailable'));
+  const rows = await query('UPDATE meeting_attendees SET response = $3 WHERE meeting_id = $1 AND user_id = $2 RETURNING meeting_id', [req.params.id, req.user.id, response]);
+  if (!rows.length) return fail(res, 404, msg(req, 'meetingNotFound'));
+  await audit(req.user.id, `meeting.${response}`, { meeting: req.params.id });
+  res.json({ ok: true, response });
+}));
+
+app.post('/api/meetings/:id/cancel', auth, h(async (req, res) => {
+  const m = await one('SELECT organizer_id FROM meetings WHERE id = $1', [req.params.id]);
+  if (!m) return fail(res, 404, msg(req, 'meetingNotFound'));
+  if (m.organizer_id !== req.user.id) return fail(res, 403, msg(req, 'onlyOrganizer'));
+  await query(`UPDATE meetings SET status = 'cancelled' WHERE id = $1`, [req.params.id]);
+  await audit(req.user.id, 'meeting.cancel', { meeting: req.params.id });
+  res.json({ ok: true });
+}));
+
+// Badge counts: connection requests and meeting invitations waiting for an answer.
+app.get('/api/notifications', auth, h(async (req, res) => {
+  const requests = (await connectionsOf(req.user.id)).filter((c) => c.status === 'pending' && c.requester_id !== req.user.id);
+  const invites = (await meetingsFor(req.user.id, new Date().toISOString().slice(0, 10), '9999-12-31')).filter((m) => !m.isOrganizer && m.myResponse === 'pending');
+  res.json({ requests: requests.length, invites });
+}));
+
 // ---------- Calendar (.ics) ----------
 function icsEscape(s) {
   return String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, (m) => '\\' + m);
@@ -535,7 +767,7 @@ app.get('/api/tasks/:id/ics', auth, h(async (req, res) => {
 class AIError extends Error {}
 
 // Internal details go to the server log only; users get a translated message.
-async function openaiJSON(system, user) {
+async function openaiJSON(system, user, history = []) {
   try {
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -545,6 +777,7 @@ async function openaiJSON(system, user) {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: system },
+          ...history,
           { role: 'user', content: user },
         ],
       }),
@@ -770,99 +1003,244 @@ function fallbackAssistant(text, contacts, tasks, lang, sender, today) {
     const ids = new Set([...contacts.filter((c) => groups.includes(c.group_name)), ...named].map((c) => c.id));
     const n = ids.size;
     return {
-      action: 'email',
       reply: isAr ? `جهّزت الرسالة إلى ${n} ${n === 1 ? 'شخص' : 'أشخاص'}. هل أرسلها؟` : `The email to ${n} ${n === 1 ? 'person' : 'people'} is ready. Should I send it?`,
-      email: {
+      actions: [{
+        type: 'email',
         recipients: [...ids],
         subject: isAr ? `رسالة من ${sender}` : `A message from ${sender}`,
         body: isAr ? `السلام عليكم،\n\n${text}\n\nمع التحية،\n${sender}` : `Hello,\n\n${text}\n\nBest regards,\n${sender}`,
-      },
+      }],
     };
   }
-  if (/(remind|task|todo|meeting|appointment|add|ذكرني|مهمه|مهمة|موعد|اجتماع|اضف|أضف)/i.test(text)) {
-    return { action: 'task', reply: isAr ? 'أضفت المهمة إلى تقويمك.' : 'Added to your calendar.', task: { title: text.slice(0, 200), date: today, time: '' } };
+  if (/(remind|task|todo|appointment|add|ذكرني|مهمه|مهمة|موعد|اضف|أضف)/i.test(text)) {
+    return { reply: isAr ? 'أضفت المهمة إلى تقويمك.' : 'Added to your calendar.', actions: [{ type: 'task', title: text.slice(0, 200), date: today, time: '' }] };
   }
   const upcoming = tasks.filter((t) => t.date >= today).slice(0, 5);
   return {
-    action: 'answer',
     reply: upcoming.length
       ? (isAr ? 'القادم في تقويمك: ' : 'Coming up: ') + upcoming.map((t) => `${t.title} (${t.date})`).join('، ')
       : isAr ? 'تقويمك فارغ في الأيام القادمة.' : 'Your calendar is clear for the coming days.',
+    actions: [],
   };
 }
 
+const ASSISTANT_SYSTEM = `You are Mudir (مُدير), a smart bilingual personal assistant for busy professionals, mostly in Qatar and the Gulf. You manage the user's calendar, personal tasks, meetings with their Mudir connections and their emails, and you also answer general questions helpfully.
+
+LANGUAGE
+- Always reply in the language the user wrote in. Arabic in any dialect gets a reply in natural, warm Modern Standard Arabic. Never reply in English to an Arabic message.
+- Understand Gulf/Qatari dialect, for example: ابي/ابغى/أبغي = I want; باچر/باكر/بكرة = tomorrow; عقب = after; الحين = now; الجاي = next; ويّا = with; سوّ/سوي = do or make; شلون = how; وايد = a lot; زين = fine; كلّم = contact; خلّه = let it be; ميتنق/لقاء = meeting; العيال/الشباب/الربع = the team (informal). Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) are ordinary numbers. الصبح≈09:00, الظهر≈12:00, العصر≈15:30, المغرب≈17:30, الليل≈20:00 when no exact time is given.
+- Emails are written in the language the user asks for, otherwise the language of the request. Arabic emails use polished formal Arabic (e.g. opening "تحية طيبة وبعد،" and closing "وتفضلوا بقبول فائق الاحترام،").
+
+TIME
+- Use "now" (the user's local time; Asia/Qatar unless told otherwise) to turn relative dates into YYYY-MM-DD and times into 24h HH:MM. A weekday name alone ("Thursday", "الخميس الجاي") means its next occurrence after today. The Qatar work week is Sunday to Thursday.
+
+MEMORY
+- "memories" are lasting facts the user asked you to keep (preferences, signature, roles of people). Apply them without being asked.
+- When the user states a lasting fact or preference ("remember…", "تذكّر…", "my manager is…", "always sign as…"), add a short third-person note to "remember" in the user's language and confirm briefly. When they ask you to forget something, put the matching memory ids in "forget".
+- "history" is the recent conversation. Use it for follow-ups such as "make it shorter", "add Omar too", "send it in English", "اجعلها أقصر", "غيّر الوقت إلى ٤". When revising something you prepared earlier, return the complete updated action again.
+
+ACTIONS — return zero or more in "actions"; a request with several steps gets several actions.
+- {"type":"email","recipients":[contact ids],"addresses":[email addresses said explicitly],"unmatched":[names not found],"subject":string,"body":string}
+  For writing to people. Pick recipients from "contacts" by name or group: a group such as "employees", "الموظفين", "my team" or "العيال" means every contact in that group. Sign with the sender name, or the signature in memories. Never claim it was sent: the app shows it for approval.
+- {"type":"meeting","title":string,"date":"YYYY-MM-DD","time":"HH:MM","durationMin":number,"location":string,"notes":string,"attendees":[connection ids],"unmatched":[names not found]}
+  For meetings with other Mudir users from "connections"; they receive an invitation on their own calendar. Default duration 30 minutes. A person who is only in contacts (not connections) goes in "unmatched".
+- {"type":"task","title":string,"date":"YYYY-MM-DD" or "","time":"HH:MM" or ""}
+  For the user's own reminders, to-dos and personal appointments.
+
+CLARIFY
+- When something essential is missing or ambiguous (who, which day, or what time for a meeting; what an email should say), ask ONE short question in "reply" and return no actions. Do not ask about things with sensible defaults.
+
+ANSWERS
+- Answer questions about their schedule from "upcoming". Answer general questions (facts, advice, writing help, translation, calculations) helpfully in "reply", up to about 120 words.
+
+REPLY
+- "reply" is read aloud: natural and short (1–2 sentences) unless answering a question. For emails and meetings, say what you prepared and ask whether to send it. Only name people who are actually included, and say plainly who could not be found.
+
+Return JSON only: {"reply":string,"actions":[...],"remember":[strings],"forget":[memory ids]}
+
+EXAMPLES (ids and dates are illustrative)
+User: "ابي اجتماع ويّا سارة باچر الساعة ٣ العصر عن الميزانية"
+{"reply":"جهّزت دعوة اجتماع مع سارة غدًا الساعة 3 عصرًا لمناقشة الميزانية. هل أرسلها؟","actions":[{"type":"meeting","title":"مناقشة الميزانية","date":"2026-11-04","time":"15:00","durationMin":30,"location":"","notes":"","attendees":["u_sara"],"unmatched":[]}],"remember":[],"forget":[]}
+User: "تذكّر إن توقيعي د. مازن الجيلي"
+{"reply":"تم، سأوقّع رسائلك باسم د. مازن الجيلي من الآن.","actions":[],"remember":["يوقّع المستخدم رسائله باسم: د. مازن الجيلي"],"forget":[]}
+User: "أرسل للموظفين"
+{"reply":"بكل سرور. ماذا تريد أن تقول لهم في الرسالة؟","actions":[],"remember":[],"forget":[]}
+User: "Remind me to renew my ID next Sunday and email Omar the report"
+{"reply":"I added the reminder for Sunday and drafted the email to Omar. Should I send it?","actions":[{"type":"task","title":"Renew ID","date":"2026-11-08","time":""},{"type":"email","recipients":["c_omar"],"addresses":[],"unmatched":[],"subject":"The report","body":"Hi Omar,\\n\\nPlease find the report [details].\\n\\nBest regards,\\nMazen"}],"remember":[],"forget":[]}`;
+
+const WEEKDAYS = { en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], ar: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'] };
+const HISTORY_SENT = 16; // recent messages the assistant sees
+const HISTORY_KEPT = 40; // messages kept per user
+const MEMORY_MAX = 100;
+
+// What the model sees from earlier turns: what was said, plus a compact note of what was prepared.
+function historyForModel(rows) {
+  return rows.map((r) => {
+    const c = JSON.parse(r.content);
+    return { role: r.role, content: c.context ? `${c.text}\n\n[${c.context}]` : c.text };
+  });
+}
+
+function summarizeActions(actions) {
+  return actions
+    .map((a) => {
+      if (a.type === 'email') return `Prepared email to ${a.recipients.map((r) => r.name).join(', ') || 'nobody yet'} | subject: ${a.subject} | body: ${a.body.slice(0, 900)}`;
+      if (a.type === 'meeting') return `Prepared meeting "${a.title}" ${a.date} ${a.time} (${a.durationMin} min) with ${a.attendees.map((x) => x.name).join(', ')}${a.location ? ` at ${a.location}` : ''}`;
+      if (a.type === 'task') return `Added task "${a.task.title}" ${a.task.date} ${a.task.time}`;
+      return '';
+    })
+    .filter(Boolean)
+    .join(' || ');
+}
+
+app.get('/api/assistant/history', auth, h(async (req, res) => {
+  const rows = await query('SELECT role, content, created_at FROM assistant_messages WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2', [req.user.id, HISTORY_KEPT]);
+  res.json({ messages: rows.reverse().map((r) => ({ role: r.role, text: JSON.parse(r.content).text, at: r.created_at })) });
+}));
+
+app.delete('/api/assistant/history', auth, h(async (req, res) => {
+  await query('DELETE FROM assistant_messages WHERE user_id = $1', [req.user.id]);
+  res.json({ ok: true });
+}));
+
+app.get('/api/memories', auth, h(async (req, res) => {
+  const rows = await query('SELECT id, content, created_at FROM memories WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
+  res.json({ memories: rows.map((m) => ({ id: m.id, content: m.content, at: m.created_at })) });
+}));
+
+app.delete('/api/memories/:id', auth, h(async (req, res) => {
+  await query('DELETE FROM memories WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+  res.json({ ok: true });
+}));
+
 app.post('/api/assistant', auth, h(async (req, res) => {
-  const text = String(req.body.text || '').trim().slice(0, 1000);
+  const text = String(req.body.text || '').trim().slice(0, 2000);
   if (!text) return fail(res, 400, msg(req, 'assistantEmpty'));
   if (usage(req.user).aiDrafts >= PLANS[req.user.plan].aiDrafts) return fail(res, 402, msg(req, 'draftLimit'));
   const lang = langOf(req);
   const today = DATE_RE.test(req.body.today) ? req.body.today : new Date().toISOString().slice(0, 10);
-  const contacts = await query('SELECT id, name, email, group_name FROM contacts WHERE user_id = $1 ORDER BY name LIMIT 500', [req.user.id]);
-  const tasks = (await query(
-    `SELECT * FROM tasks WHERE user_id = $1 AND NOT done AND date >= $2 ORDER BY date, time LIMIT 60`,
-    [req.user.id, today],
-  )).map(taskOut);
+  const time = TIME_RE.test(req.body.time) ? req.body.time : '';
+  const timezone = String(req.body.timezone || 'Asia/Qatar').slice(0, 60);
+  const horizon = (() => {
+    const d = new Date(today + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 45);
+    return d.toISOString().slice(0, 10);
+  })();
+  const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
+
+  const [contacts, connections, memories, historyRows, tasks, meetings] = await Promise.all([
+    query('SELECT id, name, email, group_name FROM contacts WHERE user_id = $1 ORDER BY name LIMIT 500', [req.user.id]),
+    connectedUsers(req.user.id),
+    query('SELECT id, content FROM memories WHERE user_id = $1 ORDER BY created_at LIMIT $2', [req.user.id, MEMORY_MAX]),
+    query('SELECT role, content FROM assistant_messages WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2', [req.user.id, HISTORY_SENT]),
+    query(`SELECT * FROM tasks WHERE user_id = $1 AND NOT done AND date >= $2 AND date <= $3 ORDER BY date, time LIMIT 80`, [req.user.id, today, horizon]),
+    meetingsFor(req.user.id, today, horizon),
+  ]);
 
   let out;
   if (openaiEnabled) {
-    const system =
-      'You are Mudir (مُدير), the voice assistant inside a calendar and email app. Interpret the command and return JSON only:\n' +
-      '{"action":"email"|"task"|"answer","reply":string,' +
-      '"email":{"recipients":[contact ids],"addresses":[email addresses said explicitly],"unmatched":[names or groups you could not find],"subject":string,"body":string},' +
-      '"task":{"title":string,"date":"YYYY-MM-DD" or "","time":"HH:MM" or ""}}\n' +
-      'Rules:\n' +
-      '- "email" when the user wants to email or message people. Pick recipients from the contacts by name or group; a group (e.g. "employees", "الموظفين", "my team") means every contact in that group. Match across Arabic and English, singular and plural, and with or without "my".\n' +
-      '- Write the subject and body in the language of the command unless told otherwise: warm, clear, professional, ready to send, signed with the sender name. Do not invent facts; use placeholders like [date] only if essential.\n' +
-      '- "reply" is one short spoken-style sentence in the UI language. For emails, say who it is for and end by asking whether to send it. ' +
-      'Only name people who are actually in recipients; if anyone in "unmatched" was not found, say clearly that they are not in People yet.\n' +
-      '- "task" when the user wants a reminder, task or appointment. Resolve relative dates from today.\n' +
-      '- "answer" for questions about their schedule; answer briefly from the tasks.';
-    const prompt = JSON.stringify({
-      command: text,
-      today,
-      uiLanguage: lang === 'en' ? 'English' : 'Arabic',
+    const payload = JSON.stringify({
+      now: { date: today, time, weekday: `${WEEKDAYS.en[weekday]} / ${WEEKDAYS.ar[weekday]}`, timezone },
+      appLanguage: lang === 'en' ? 'English' : 'Arabic',
       sender: req.user.name,
+      memories: memories.map((m) => ({ id: m.id, note: m.content })),
       contacts: contacts.map((c) => ({ id: c.id, name: c.name, group: c.group_name })),
-      upcomingTasks: tasks.map((t) => ({ title: t.title, date: t.date, time: t.time })),
+      connections: connections.map((c) => ({ id: c.id, name: c.name })),
+      upcoming: {
+        tasks: tasks.map((t) => ({ title: t.title, date: t.date, time: t.time })),
+        meetings: meetings.filter((m) => m.myResponse !== 'declined').map((m) => ({ title: m.title, date: m.date, time: m.time, with: [m.organizer.name, ...m.attendees.map((a) => a.name)].join(', ') })),
+      },
+      message: text,
     });
     try {
-      out = await openaiJSON(system, prompt);
+      out = await openaiJSON(ASSISTANT_SYSTEM, payload, historyForModel(historyRows.reverse()));
     } catch {
       return fail(res, 502, msg(req, 'aiUnavailable'));
     }
   } else {
-    out = fallbackAssistant(text, contacts, tasks, lang, req.user.name, today);
+    out = fallbackAssistant(text, contacts, tasks.map(taskOut), lang, req.user.name, today);
   }
 
-  const action = ['email', 'task', 'answer'].includes(out.action) ? out.action : 'answer';
-  const result = { action, reply: String(out.reply || '').slice(0, 600) };
-
-  if (action === 'email') {
-    const ids = new Set(Array.isArray(out.email?.recipients) ? out.email.recipients : []);
-    const picked = contacts.filter((c) => ids.has(c.id)).map((c) => ({ name: c.name, email: c.email }));
-    const extra = (Array.isArray(out.email?.addresses) ? out.email.addresses : [])
-      .map((a) => String(a).trim().toLowerCase())
-      .filter((a) => EMAIL_RE.test(a) && !picked.some((p) => p.email === a))
-      .map((a) => ({ name: a, email: a }));
-    result.email = {
-      recipients: [...picked, ...extra],
-      unmatched: (Array.isArray(out.email?.unmatched) ? out.email.unmatched : []).map(String).slice(0, 10),
-      subject: String(out.email?.subject || '').slice(0, 300),
-      body: String(out.email?.body || '').slice(0, 10000),
-    };
-  } else if (action === 'task') {
-    const title = String(out.task?.title || text).trim().slice(0, 200);
-    const date = DATE_RE.test(out.task?.date) ? out.task.date : '';
-    const time = TIME_RE.test(out.task?.time) ? out.task.time : '';
-    const row = await one(
-      `INSERT INTO tasks (id, user_id, title, date, time) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [id(), req.user.id, title, date, time],
-    );
-    result.task = taskOut(row);
+  // Accept the older single-action shape too.
+  const rawActions = Array.isArray(out.actions) ? out.actions : out.action && out[out.action] ? [{ type: out.action, ...out[out.action] }] : [];
+  const actions = [];
+  for (const a of rawActions.slice(0, 4)) {
+    if (a?.type === 'email') {
+      const ids = new Set(Array.isArray(a.recipients) ? a.recipients : []);
+      const picked = contacts.filter((c) => ids.has(c.id)).map((c) => ({ name: c.name, email: c.email }));
+      const extra = (Array.isArray(a.addresses) ? a.addresses : [])
+        .map((x) => String(x).trim().toLowerCase())
+        .filter((x) => EMAIL_RE.test(x) && !picked.some((p) => p.email === x))
+        .map((x) => ({ name: x, email: x }));
+      actions.push({
+        type: 'email',
+        key: id(),
+        recipients: [...picked, ...extra],
+        unmatched: (Array.isArray(a.unmatched) ? a.unmatched : []).map(String).slice(0, 10),
+        subject: String(a.subject || '').slice(0, 300),
+        body: String(a.body || '').slice(0, 10000),
+      });
+    } else if (a?.type === 'meeting') {
+      const ids = new Set(Array.isArray(a.attendees) ? a.attendees : []);
+      const attendees = connections.filter((c) => ids.has(c.id)).map((c) => ({ id: c.id, name: c.name }));
+      const m = cleanMeeting({ ...a, attendeeIds: attendees.map((x) => x.id) });
+      if (!DATE_RE.test(m.date)) m.date = today;
+      if (m.time && !TIME_RE.test(m.time)) m.time = '';
+      actions.push({
+        type: 'meeting',
+        key: id(),
+        title: m.title || (lang === 'ar' ? 'اجتماع' : 'Meeting'),
+        date: m.date,
+        time: m.time,
+        durationMin: m.durationMin,
+        location: m.location,
+        notes: m.notes,
+        attendees,
+        unmatched: (Array.isArray(a.unmatched) ? a.unmatched : []).map(String).slice(0, 10),
+        conflicts: await findConflicts(req.user, m, [req.user.id, ...attendees.map((x) => x.id)]),
+      });
+    } else if (a?.type === 'task') {
+      const title = String(a.title || text).trim().slice(0, 200);
+      const row = await one(`INSERT INTO tasks (id, user_id, title, date, time) VALUES ($1, $2, $3, $4, $5) RETURNING *`, [
+        id(), req.user.id, title, DATE_RE.test(a.date) ? a.date : '', TIME_RE.test(a.time) ? a.time : '',
+      ]);
+      actions.push({ type: 'task', task: taskOut(row) });
+    }
   }
 
-  result.user = publicUser(await bumpUsage(req.user.id, 'ai'));
-  res.json(result);
+  // Memory updates
+  const remembered = [];
+  const known = new Set(memories.map((m) => normalize(m.content)));
+  for (const note of (Array.isArray(out.remember) ? out.remember : []).slice(0, 5)) {
+    const content = String(note || '').trim().slice(0, 300);
+    if (!content || known.has(normalize(content))) continue;
+    known.add(normalize(content));
+    remembered.push(await one('INSERT INTO memories (id, user_id, content) VALUES ($1, $2, $3) RETURNING id, content', [id(), req.user.id, content]));
+  }
+  const forgetIds = (Array.isArray(out.forget) ? out.forget : []).map(String).slice(0, 20);
+  if (forgetIds.length) await query('DELETE FROM memories WHERE user_id = $1 AND id = ANY($2)', [req.user.id, forgetIds]);
+  const overflow = memories.length + remembered.length - MEMORY_MAX;
+  if (overflow > 0) {
+    await query('DELETE FROM memories WHERE id IN (SELECT id FROM memories WHERE user_id = $1 ORDER BY created_at LIMIT $2)', [req.user.id, overflow]);
+  }
+
+  const reply = String(out.reply || '').slice(0, 1500);
+  await query('INSERT INTO assistant_messages (id, user_id, role, content) VALUES ($1, $2, $3, $4)', [id(), req.user.id, 'user', JSON.stringify({ text })]);
+  await query('INSERT INTO assistant_messages (id, user_id, role, content) VALUES ($1, $2, $3, $4)', [
+    id(), req.user.id, 'assistant', JSON.stringify({ text: reply, context: summarizeActions(actions) }),
+  ]);
+  await query(
+    `DELETE FROM assistant_messages WHERE user_id = $1 AND id NOT IN (SELECT id FROM assistant_messages WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2)`,
+    [req.user.id, HISTORY_KEPT],
+  );
+
+  res.json({
+    reply,
+    actions,
+    remembered: remembered.map((m) => m.content),
+    forgot: forgetIds.length,
+    user: publicUser(await bumpUsage(req.user.id, 'ai')),
+  });
 }));
 
 // ---------- Gmail (send from the signed-in user's own account) ----------
@@ -1078,6 +1456,8 @@ app.post('/api/email/send', auth, h(async (req, res) => {
 
   const task = req.body.taskId ? await findTask(req.body.taskId, user.id) : null;
   if (usage(user).emails + recipients.length > PLANS[user.plan].emails) return fail(res, 402, msg(req, 'emailLimit'));
+  const key = req.body.key;
+  if (!(await claimKey(user.id, key))) return fail(res, 409, msg(req, 'alreadyDone'));
 
   const sent = [];
   let failure = null;
@@ -1110,6 +1490,8 @@ app.post('/api/email/send', auth, h(async (req, res) => {
   }
   if (task && rows.length) await query('UPDATE tasks SET last_email_at = $2 WHERE id = $1', [task.id, rows[0].sent_at]);
   const updated = sent.length ? await bumpUsage(user.id, 'email', sent.length) : user;
+  if (sent.length) await audit(user.id, 'email.send', { recipients: sent.length, of: recipients.length, subject: subject.slice(0, 120) });
+  else await releaseKey(user.id, key); // nothing went out, so the same email may be retried
 
   if (failure) {
     if (failure instanceof GmailAuthError) {

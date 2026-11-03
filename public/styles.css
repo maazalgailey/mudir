@@ -749,6 +749,61 @@ main { padding: 0 16px; }
 }
 .speech-lang:hover { background: var(--hover); color: var(--ink); }
 
+/* ---------- Connections, meetings, memory ---------- */
+.badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff;
+  font-size: 0.7rem; font-weight: 700; display: inline-grid; place-items: center; line-height: 1;
+}
+.nav-item .badge { margin-inline-start: auto; }
+.tab-ic { position: relative; display: inline-grid; }
+.tab-ic .badge { position: absolute; top: -4px; inset-inline-end: -10px; }
+
+.callout.red { background: var(--red-b); color: var(--ink); }
+.callout.red .ic { color: var(--red-t); }
+.callout ul { margin: 4px 0 0; padding-inline-start: 18px; }
+
+.invites { display: flex; flex-direction: column; gap: 8px; }
+.invite {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border: 1px solid var(--purple-t); background: var(--purple-b); border-radius: 14px; padding: 10px 12px;
+}
+.invite .grow { min-width: 160px; }
+.invite .ic.lead { color: var(--purple-t); width: 22px; height: 22px; }
+
+.chip-task.meeting { background: var(--purple-b); color: var(--purple-t); }
+.chip-task.meeting.pending { background: transparent; outline: 1px dashed var(--purple-t); outline-offset: -1px; }
+.dots i.m { background: var(--purple-t); }
+
+.meeting-row { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--line-soft); min-height: 56px; width: 100%; border-inline: 0; border-top: 0; background: transparent; text-align: start; }
+.meeting-row:hover { background: var(--hover); }
+.meeting-row .ic.lead { color: var(--purple-t); width: 22px; height: 22px; flex: none; }
+
+.people.connections .person .actions { display: flex; gap: 4px; }
+.status-pill { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; background: var(--gray-b); color: var(--gray-t); white-space: nowrap; }
+.status-pill.accepted { background: var(--green-b); color: var(--green-t); }
+.status-pill.declined { background: var(--red-b); color: var(--red-t); }
+.status-pill.pending { background: var(--yellow-b); color: var(--yellow-t); }
+
+.pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick label {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 12px; cursor: pointer; font-size: 0.92rem; min-height: 40px; background: var(--surface);
+}
+.pick input { accent-color: var(--blue); width: 18px; height: 18px; margin: 0; }
+.pick label:has(input:checked) { border-color: var(--blue); background: var(--blue-b); color: var(--blue-t); }
+
+.meeting-facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 0.95rem; }
+.meeting-facts dt { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.meeting-facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+.memory-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.memory-list li { display: flex; align-items: center; gap: 8px; background: var(--sidebar); border-radius: 10px; padding: 8px 6px 8px 12px; }
+[dir='rtl'] .memory-list li { padding: 8px 12px 8px 6px; }
+.memory-list li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.as-memory { align-self: flex-start; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--purple-t); background: var(--purple-b); border-radius: 999px; padding: 4px 10px; }
+.as-memory .ic { width: 15px; height: 15px; }
+.as-msg.history { opacity: 0.75; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

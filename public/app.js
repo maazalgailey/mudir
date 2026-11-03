@@ -74,6 +74,61 @@ const I18N = {
     taskAdded: 'تمت الإضافة إلى التقويم',
     openTask: 'فتح',
     addRecipientPh: 'أضف بريدًا…',
+    // Connections & meetings
+    connect: 'تواصل مع مستخدم',
+    connectHelp: 'أدخل بريد شخص لديه حساب في مُدير. بعد قبوله يمكنكما ترتيب الاجتماعات، وتظهر الدعوات في تقويمه مباشرة.',
+    sendRequest: 'إرسال طلب التواصل',
+    contactsTitle: 'جهات الاتصال للبريد',
+    onMudir: 'متصلون في مُدير',
+    requests: 'طلبات تواصل',
+    waiting: 'بانتظار القبول',
+    accept: 'قبول',
+    decline: 'رفض',
+    remove: 'إزالة',
+    meetingBtn: 'اجتماع',
+    newMeeting: 'اجتماع جديد',
+    meetingTitle: 'عنوان الاجتماع',
+    fTime: 'الوقت',
+    duration: 'المدة (دقيقة)',
+    minutes: '{n} دقيقة',
+    attendees: 'المدعوون',
+    location: 'المكان',
+    locationPh: 'مثال: غرفة الاجتماعات 2 أو رابط Teams',
+    notesLabel: 'ملاحظات',
+    sendInvite: 'إرسال الدعوة',
+    inviteSent: 'أُرسلت الدعوة، وستظهر في تقويمهم',
+    conflictsTitle: 'تعارض في المواعيد:',
+    conflictBusy: '{name} مشغول الساعة {time}',
+    conflictYou: 'لديك «{title}» الساعة {time}',
+    sendAnyway: 'يمكنك الإرسال رغم ذلك.',
+    invitedYou: '{name} يدعوك',
+    organizer: 'المنظّم',
+    youOrganize: 'أنت',
+    cancelMeeting: 'إلغاء الاجتماع',
+    confirmCancelMeeting: 'إلغاء هذا الاجتماع لجميع المدعوين؟',
+    meetingCancelled: 'تم إلغاء الاجتماع',
+    rAccepted: 'قبِل',
+    rDeclined: 'اعتذر',
+    rPending: 'لم يرد بعد',
+    youAccepted: 'قبلت الدعوة',
+    youDeclined: 'اعتذرت عن الدعوة',
+    notOnMudirInvite: 'ادعُه للانضمام إلى مُدير',
+    inviteEmailSubject: 'انضم إليّ في مُدير',
+    inviteEmailBody: 'مرحبًا،\n\nأستخدم مُدير لتنظيم الاجتماعات والبريد. انضم من هنا لنرتب مواعيدنا معًا:\n{link}\n\nمع التحية،\n{name}',
+    connRequested: 'أُرسل طلب التواصل',
+    connAccepted: 'أصبحتما متصلين',
+    connRemoved: 'تمت الإزالة',
+    confirmRemoveConn: 'إزالة هذا الاتصال؟',
+    noConnections: 'لا أحد بعد. تواصل مع زملائك في مُدير لترتيب الاجتماعات معهم بجملة واحدة.',
+    connectFirst: 'تواصل مع أشخاص في مُدير أولًا لتتمكن من دعوتهم.',
+    withNames: 'مع {names}',
+    newChat: 'محادثة جديدة',
+    chatCleared: 'بدأت محادثة جديدة',
+    rememberedNote: 'سأتذكّر: {text}',
+    memoryTitle: 'ما يتذكّره مُدير',
+    memoryHelp: 'قل لمُدير مثلًا: «تذكّر أن توقيعي د. مازن» أو «مديرتي هي سارة». يمكنك حذف أي شيء هنا.',
+    memoryEmpty: 'لا شيء بعد.',
+    forget: 'انسَ هذا',
     // People
     addPerson: 'إضافة شخص',
     editPerson: 'تعديل',
@@ -258,6 +313,60 @@ const I18N = {
     taskAdded: 'Added to your calendar',
     openTask: 'Open',
     addRecipientPh: 'Add an email…',
+    connect: 'Connect with someone',
+    connectHelp: 'Enter the email of someone who has a Mudir account. Once they accept, you can set up meetings and the invitations appear right on their calendar.',
+    sendRequest: 'Send connection request',
+    contactsTitle: 'Email contacts',
+    onMudir: 'Connected on Mudir',
+    requests: 'Connection requests',
+    waiting: 'Waiting to accept',
+    accept: 'Accept',
+    decline: 'Decline',
+    remove: 'Remove',
+    meetingBtn: 'Meeting',
+    newMeeting: 'New meeting',
+    meetingTitle: 'Meeting title',
+    fTime: 'Time',
+    duration: 'Duration (min)',
+    minutes: '{n} min',
+    attendees: 'Invite',
+    location: 'Location',
+    locationPh: 'e.g. Meeting room 2 or a Teams link',
+    notesLabel: 'Notes',
+    sendInvite: 'Send invitation',
+    inviteSent: 'Invitation sent. It will appear on their calendar.',
+    conflictsTitle: 'Schedule clash:',
+    conflictBusy: '{name} is busy at {time}',
+    conflictYou: 'You have “{title}” at {time}',
+    sendAnyway: 'You can still send it.',
+    invitedYou: '{name} invited you',
+    organizer: 'Organizer',
+    youOrganize: 'You',
+    cancelMeeting: 'Cancel meeting',
+    confirmCancelMeeting: 'Cancel this meeting for everyone invited?',
+    meetingCancelled: 'Meeting cancelled',
+    rAccepted: 'Accepted',
+    rDeclined: 'Declined',
+    rPending: 'No reply yet',
+    youAccepted: 'You accepted',
+    youDeclined: 'You declined',
+    notOnMudirInvite: 'Invite them to join Mudir',
+    inviteEmailSubject: 'Join me on Mudir',
+    inviteEmailBody: 'Hi,\n\nI use Mudir to organise meetings and email. Join here so we can schedule things together:\n{link}\n\nBest regards,\n{name}',
+    connRequested: 'Connection request sent',
+    connAccepted: "You're now connected",
+    connRemoved: 'Removed',
+    confirmRemoveConn: 'Remove this connection?',
+    noConnections: 'Nobody yet. Connect with colleagues on Mudir to set up meetings with them in one sentence.',
+    connectFirst: 'Connect with people on Mudir first so you can invite them.',
+    withNames: 'with {names}',
+    newChat: 'New chat',
+    chatCleared: 'Started a new chat',
+    rememberedNote: "I'll remember: {text}",
+    memoryTitle: 'What Mudir remembers',
+    memoryHelp: 'Tell Mudir things like “Remember my signature is Dr. Mazen” or “My manager is Sara”. You can delete anything here.',
+    memoryEmpty: 'Nothing yet.',
+    forget: 'Forget this',
     addPerson: 'Add person',
     editPerson: 'Edit',
     importList: 'Import list',
@@ -396,6 +505,11 @@ const state = {
   config: null,
   tasks: [],
   contacts: [],
+  connections: [],
+  meetings: [],
+  meetingsRange: '',
+  notif: { requests: 0, invites: [] },
+  historyLoaded: false,
   view: 'calendar',
   calMonth: null,
   calDay: null,
@@ -569,6 +683,10 @@ $('#logout').addEventListener('click', async () => {
   state.user = null;
   state.tasks = [];
   state.contacts = [];
+  state.connections = [];
+  state.meetings = [];
+  clearInterval(pollTimer);
+  $('#as-thread').innerHTML = '';
   $('#app').hidden = true;
   showAuth();
 });
@@ -606,10 +724,21 @@ async function enterApp() {
   const now = new Date();
   state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   state.calDay = today();
-  const [{ tasks }, { contacts }] = await Promise.all([api('/api/tasks'), api('/api/contacts')]);
+  const [{ tasks }, { contacts }, { connections }, notif] = await Promise.all([
+    api('/api/tasks'),
+    api('/api/contacts'),
+    api('/api/connections'),
+    api('/api/notifications'),
+  ]);
   state.tasks = tasks;
   state.contacts = contacts;
+  state.connections = connections;
+  state.notif = notif;
+  state.meetingsRange = '';
+  state.historyLoaded = false;
   sortTasks();
+  updateBadges();
+  startPolling();
 
   const params = new URLSearchParams(location.search);
   const gmailToasts = { connected: 'gmailConnectedToast', signedIn: 'signedInToast', denied: 'gmailDeniedToast', error: 'gmailErrorToast', noscope: 'gmailNoScopeToast' };
@@ -628,6 +757,36 @@ async function enterApp() {
     session.set('mudir.ask', null);
     openAssistant(ask, { voice: true });
   }
+}
+
+// ---------- Notifications (connection requests, meeting invitations) ----------
+let pollTimer = null;
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(refreshNotifications, 60000);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.user) refreshNotifications();
+});
+
+async function refreshNotifications() {
+  if (!state.user) return;
+  try {
+    const before = JSON.stringify(state.notif);
+    state.notif = await api('/api/notifications');
+    if (JSON.stringify(state.notif) === before) return;
+    updateBadges();
+    state.connections = (await api('/api/connections')).connections;
+    state.meetingsRange = ''; // invitations changed: reload the calendar's meetings
+    render();
+  } catch { /* offline or signed out; try again later */ }
+}
+
+function updateBadges() {
+  $$('[data-badge="people"]').forEach((b) => {
+    b.textContent = state.notif.requests || '';
+    b.hidden = !state.notif.requests;
+  });
 }
 
 async function refreshUser() {
@@ -695,29 +854,74 @@ function renderCalendar() {
   const offset = weekStartsSaturday() ? (m.getDay() + 1) % 7 : m.getDay();
   const start = new Date(m.getFullYear(), m.getMonth(), 1 - offset);
   const cells = Math.ceil((offset + new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate()) / 7) * 7;
+  const range = `${ymd(start)}:${ymd(new Date(start.getFullYear(), start.getMonth(), start.getDate() + cells - 1))}`;
+  if (state.meetingsRange !== range) loadMeetings(range);
   const byDay = {};
+  const meetingsByDay = {};
   state.tasks.forEach((x) => x.date && (byDay[x.date] ||= []).push(x));
+  state.meetings.filter((x) => x.myResponse !== 'declined').forEach((x) => (meetingsByDay[x.date] ||= []).push(x));
   const t0 = today();
   let html = '';
   for (let i = 0; i < cells; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     const key = ymd(d);
     const items = byDay[key] || [];
+    const meets = meetingsByDay[key] || [];
     const open = items.filter((x) => !x.done);
     const cls = ['cal-cell', d.getMonth() !== m.getMonth() && 'out', key === t0 && 'today', key === state.calDay && 'sel'].filter(Boolean).join(' ');
-    const chips = items.slice(0, 3).map((x) => `<button class="chip-task p-${x.priority} ${x.done ? 'done' : ''}" data-open="${x.id}">${x.time ? esc(x.time) + ' ' : ''}${esc(x.title)}</button>`).join('');
-    const more = items.length > 3 ? `<span class="more">${esc(t('more', { n: items.length - 3 }))}</span>` : '';
-    html += `<div class="${cls}" role="button" tabindex="0" data-day="${key}" aria-label="${esc(fmtDate(key, { weekday: 'long', day: 'numeric', month: 'long' }))}${items.length ? ` · ${items.length}` : ''}">
+    const chips = [
+      ...meets.map((x) => `<button class="chip-task meeting ${x.myResponse === 'pending' ? 'pending' : ''}" data-meeting="${x.id}">${x.time ? esc(x.time) + ' ' : ''}${esc(x.title)}</button>`),
+      ...items.map((x) => `<button class="chip-task p-${x.priority} ${x.done ? 'done' : ''}" data-open="${x.id}">${x.time ? esc(x.time) + ' ' : ''}${esc(x.title)}</button>`),
+    ];
+    const total = chips.length;
+    const more = total > 3 ? `<span class="more">${esc(t('more', { n: total - 3 }))}</span>` : '';
+    const dots = '<i class="m"></i>'.repeat(Math.min(meets.length, 3)) + '<i></i>'.repeat(Math.min(open.length, Math.max(0, 3 - meets.length)));
+    html += `<div class="${cls}" role="button" tabindex="0" data-day="${key}" aria-label="${esc(fmtDate(key, { weekday: 'long', day: 'numeric', month: 'long' }))}${total ? ` · ${total}` : ''}">
       <span class="num">${d.getDate()}</span>
-      <span class="dots">${'<i></i>'.repeat(Math.min(open.length, 3))}</span>
-      <div class="cell-tasks">${chips}${more}</div>
+      <span class="dots">${dots}</span>
+      <div class="cell-tasks">${chips.slice(0, 3).join('')}${more}</div>
     </div>`;
   }
   $('#cal-grid').innerHTML = html;
+  renderInvites();
+}
+
+async function loadMeetings(range) {
+  state.meetingsRange = range;
+  const [from, to] = range.split(':');
+  try {
+    const { meetings } = await api(`/api/meetings?from=${from}&to=${to}`);
+    if (state.meetingsRange !== range) return; // the month changed meanwhile
+    state.meetings = meetings;
+    if (state.view === 'calendar') renderCalendar();
+    if (!$('#sheet-day').hidden) openDay(state.calDay);
+  } catch {
+    state.meetingsRange = '';
+  }
+}
+
+// Pending meeting invitations, answerable right from the top of the calendar.
+function renderInvites() {
+  const box = $('#invites');
+  const invites = state.notif.invites || [];
+  box.hidden = !invites.length;
+  box.innerHTML = invites
+    .map((m) => `<div class="invite">
+      <svg class="ic lead"><use href="#i-meeting"/></svg>
+      <button class="grow quiet-link" data-meeting="${m.id}" style="border:0;background:none;text-align:start;padding:0">
+        <p class="strong">${esc(m.title)}</p>
+        <p class="muted small">${esc(t('invitedYou', { name: m.organizer.name }))} · ${esc(fmtDate(m.date))}${m.time ? ' · ' + esc(fmtTime(m.time)) : ''}</p>
+      </button>
+      <div class="row gap">
+        <button class="btn ghost" data-respond="declined" data-id="${m.id}">${esc(t('decline'))}</button>
+        <button class="btn primary" data-respond="accepted" data-id="${m.id}">${esc(t('accept'))}</button>
+      </div>
+    </div>`)
+    .join('');
 }
 
 $('#cal-grid').addEventListener('click', (e) => {
-  if (e.target.closest('[data-open]')) return; // a task chip opens the task itself
+  if (e.target.closest('[data-open], [data-meeting]')) return; // a chip opens its task or meeting itself
   const cell = e.target.closest('[data-day]');
   if (cell) openDay(cell.dataset.day);
 });
@@ -747,7 +951,9 @@ function openDay(day) {
   renderCalendar();
   $('#day-title').textContent = fmtDate(day, { weekday: 'long', day: 'numeric', month: 'long' });
   const items = state.tasks.filter((x) => x.date === day);
-  $('#day-list').innerHTML = items.length ? items.map(taskRow).join('') : `<li class="empty">${icon('calendar')}<span>${esc(t('emptyDay'))}</span></li>`;
+  const meets = state.meetings.filter((x) => x.date === day && x.myResponse !== 'declined');
+  $('#day-meetings').innerHTML = meets.map(meetingRow).join('');
+  $('#day-list').innerHTML = items.length || meets.length ? items.map(taskRow).join('') : `<li class="empty">${icon('calendar')}<span>${esc(t('emptyDay'))}</span></li>`;
   $('#day-add').reset();
   openSheet('sheet-day');
   if (matchMedia('(hover: hover)').matches) setTimeout(() => $('#day-add').title.focus(), 150);
@@ -788,6 +994,252 @@ document.addEventListener('click', async (e) => {
   }
   const open = e.target.closest('[data-open]');
   if (open) openDetail(open.dataset.open);
+});
+
+// ---------- Meetings ----------
+const responseLabel = (r) => t({ accepted: 'rAccepted', declined: 'rDeclined', pending: 'rPending' }[r] || 'rPending');
+const findMeeting = (mid) => state.meetings.find((x) => x.id === mid) || (state.notif.invites || []).find((x) => x.id === mid);
+const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+function meetingRow(m) {
+  const who = [m.isOrganizer ? null : m.organizer.name, ...m.attendees.filter((a) => a.id !== state.user.id).map((a) => a.name)].filter(Boolean);
+  return `<li><button class="meeting-row" data-meeting="${m.id}">
+    <svg class="ic lead"><use href="#i-meeting"/></svg>
+    <span class="grow"><span class="task-title">${esc(m.title)}</span>
+      <span class="task-meta">${m.time ? `<span class="tag purple">${icon('clock')}${esc(fmtTime(m.time))}</span>` : ''}<span class="tag">${icon('users')}${esc(who.join('، '))}</span>
+      ${m.myResponse === 'pending' ? `<span class="status-pill pending">${esc(t('rPending'))}</span>` : ''}</span></span>
+  </button></li>`;
+}
+
+function conflictsHtml(conflicts) {
+  if (!conflicts?.length) return '';
+  return `<div class="callout red">${icon('alert')}<div class="grow"><strong>${esc(t('conflictsTitle'))}</strong>
+    <ul>${conflicts.map((c) => `<li>${esc(c.title ? t('conflictYou', { title: c.title, time: fmtTime(c.time) }) : t('conflictBusy', { name: c.name, time: fmtTime(c.time) }))}</li>`).join('')}</ul>
+    <span class="muted small">${esc(t('sendAnyway'))}</span></div></div>`;
+}
+
+function openMeeting(mid) {
+  const m = findMeeting(mid);
+  if (!m) return;
+  const end = (() => {
+    if (!m.time) return '';
+    const [h, mm] = m.time.split(':').map(Number);
+    const total = h * 60 + mm + m.durationMin;
+    return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  })();
+  let actions = '';
+  if (m.isOrganizer) {
+    actions = `<button class="btn ghost lg danger-text" data-cancel-meeting="${m.id}">${icon('x')}${esc(t('cancelMeeting'))}</button>`;
+  } else {
+    actions = `<div class="row gap">
+      <button class="btn ${m.myResponse === 'declined' ? 'primary' : 'ghost'} grow lg" data-respond="declined" data-id="${m.id}">${esc(t('decline'))}</button>
+      <button class="btn ${m.myResponse === 'accepted' ? 'primary' : 'ghost'} grow lg" data-respond="accepted" data-id="${m.id}">${icon('check')}${esc(t('accept'))}</button>
+    </div>`;
+  }
+  $('#meeting-body').innerHTML = `
+    <div class="stack" style="gap:16px">
+      <div class="sheet-head">
+        <h3 class="row gap"><svg class="ic" style="color:var(--purple-t)"><use href="#i-meeting"/></svg><span dir="auto">${esc(m.title)}</span></h3>
+        <button class="icon-btn lg" type="button" data-close aria-label="${esc(t('close'))}">${icon('x')}</button>
+      </div>
+      <dl class="meeting-facts">
+        <dt>${icon('calendar')}${esc(t('fDate'))}</dt><dd>${esc(fmtDate(m.date, { weekday: 'long', day: 'numeric', month: 'long' }))}</dd>
+        ${m.time ? `<dt>${icon('clock')}${esc(t('fTime'))}</dt><dd dir="ltr">${esc(fmtTime(m.time))} – ${esc(fmtTime(end))}</dd>` : ''}
+        ${m.location ? `<dt>${icon('pin')}${esc(t('location'))}</dt><dd dir="auto">${esc(m.location)}</dd>` : ''}
+        <dt>${icon('user')}${esc(t('organizer'))}</dt><dd>${esc(m.isOrganizer ? t('youOrganize') : m.organizer.name)}</dd>
+        <dt>${icon('users')}${esc(t('attendees'))}</dt>
+        <dd>${m.attendees.map((a) => `<span class="row gap" style="gap:4px">${esc(a.id === state.user.id ? t('youOrganize') : a.name)} <span class="status-pill ${a.response}">${esc(responseLabel(a.response))}</span></span>`).join('')}</dd>
+      </dl>
+      ${m.notes ? `<p class="notes" dir="auto">${esc(m.notes)}</p>` : ''}
+      ${actions}
+    </div>`;
+  openSheet('sheet-meeting');
+}
+
+document.addEventListener('click', async (e) => {
+  const open = e.target.closest('[data-meeting]');
+  if (open) return openMeeting(open.dataset.meeting);
+
+  const respond = e.target.closest('[data-respond]');
+  if (respond) {
+    const { id: mid } = respond.dataset;
+    const response = respond.dataset.respond;
+    respond.disabled = true;
+    try {
+      await api(`/api/meetings/${mid}/respond`, { method: 'POST', body: { response } });
+      toast(t(response === 'accepted' ? 'youAccepted' : 'youDeclined'));
+      state.notif.invites = (state.notif.invites || []).filter((x) => x.id !== mid);
+      const m = state.meetings.find((x) => x.id === mid);
+      if (m) {
+        m.myResponse = response;
+        const me = m.attendees.find((a) => a.id === state.user.id);
+        if (me) me.response = response;
+      }
+      state.meetingsRange = '';
+      if (!$('#sheet-meeting').hidden) closeSheets();
+      render();
+    } catch (err) {
+      toast(err.message, true);
+      respond.disabled = false;
+    }
+    return;
+  }
+
+  const cancel = e.target.closest('[data-cancel-meeting]');
+  if (cancel && confirm(t('confirmCancelMeeting'))) {
+    try {
+      await api(`/api/meetings/${cancel.dataset.cancelMeeting}/cancel`, { method: 'POST' });
+      state.meetings = state.meetings.filter((x) => x.id !== cancel.dataset.cancelMeeting);
+      closeSheets();
+      render();
+      toast(t('meetingCancelled'));
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }
+});
+
+// New meeting form
+let meetingFormKey = null;
+let conflictTimer = null;
+const acceptedConnections = () => state.connections.filter((c) => c.status === 'accepted').map((c) => c.user);
+
+function openMeetingForm({ date, attendeeIds = [] } = {}) {
+  const f = $('#meeting-form');
+  f.reset();
+  meetingFormKey = newKey();
+  f.date.value = date || today();
+  const people = acceptedConnections();
+  $('#mf-attendees').innerHTML = people.length
+    ? people.map((p) => `<label><input type="checkbox" name="attendee" value="${p.id}" ${attendeeIds.includes(p.id) ? 'checked' : ''} />${esc(p.name)}</label>`).join('')
+    : `<div class="callout">${icon('alert')}<span>${esc(t('connectFirst'))} <a href="#people" data-view="people">${esc(t('connect'))}</a></span></div>`;
+  $('#mf-conflicts').innerHTML = '';
+  f.querySelector('[type=submit]').disabled = !people.length;
+  openSheet('sheet-meeting-form');
+  if (matchMedia('(hover: hover)').matches) setTimeout(() => f.title.focus(), 150);
+}
+
+function meetingFormValues() {
+  const f = $('#meeting-form');
+  return {
+    title: f.title.value,
+    date: f.date.value,
+    time: f.time.value,
+    durationMin: Number(f.durationMin.value),
+    location: f.location.value,
+    notes: f.notes.value,
+    attendeeIds: $$('input[name=attendee]:checked', f).map((x) => x.value),
+  };
+}
+
+$('#meeting-form').addEventListener('change', () => {
+  clearTimeout(conflictTimer);
+  conflictTimer = setTimeout(async () => {
+    const v = meetingFormValues();
+    if (!v.date || !v.time) return;
+    try {
+      $('#mf-conflicts').innerHTML = conflictsHtml((await api('/api/meetings/check', { method: 'POST', body: v })).conflicts);
+    } catch { /* the check is advisory */ }
+  }, 300);
+});
+
+$('#meeting-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('[type=submit]');
+  const v = meetingFormValues();
+  if (!v.attendeeIds.length) return toast(t('connectFirst'), true);
+  busy(btn, true, t('sending'));
+  try {
+    await api('/api/meetings', { method: 'POST', body: { ...v, key: meetingFormKey } });
+    state.meetingsRange = '';
+    closeSheets();
+    render();
+    toast(t('inviteSent'));
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    busy(btn, false);
+  }
+});
+
+$('#day-meeting').addEventListener('click', () => openMeetingForm({ date: state.calDay }));
+
+// ---------- Connections ----------
+function renderConnections() {
+  const incoming = state.connections.filter((c) => c.status === 'pending' && c.direction === 'in');
+  const accepted = state.connections.filter((c) => c.status === 'accepted');
+  const outgoing = state.connections.filter((c) => c.status === 'pending' && c.direction === 'out');
+  const person = (c, actions) => `<li class="person">
+    <span class="avatar">${esc(initial(c.user.name))}</span>
+    <div class="grow"><p class="strong">${esc(c.user.name)}</p><p class="muted small" dir="ltr" style="text-align:start">${esc(c.user.email)}</p></div>
+    <div class="actions row gap">${actions}</div>
+  </li>`;
+  let html = '';
+  if (incoming.length) {
+    html += `<div class="group"><div class="group-head"><span class="row gap"><span class="tag red">${esc(t('requests'))}</span><span class="muted small">${incoming.length}</span></span></div>
+      <ul class="people connections">${incoming.map((c) => person(c, `<button class="btn ghost" data-conn-remove="${c.id}">${esc(t('decline'))}</button><button class="btn primary" data-conn-accept="${c.id}">${esc(t('accept'))}</button>`)).join('')}</ul></div>`;
+  }
+  html += `<div class="group"><div class="group-head"><span class="row gap"><span class="tag blue">${esc(t('onMudir'))}</span><span class="muted small">${accepted.length}</span></span></div>`;
+  html += accepted.length || outgoing.length
+    ? `<ul class="people connections">${accepted.map((c) => person(c, `<button class="btn ghost" data-conn-meet="${c.user.id}">${icon('meeting')}${esc(t('meetingBtn'))}</button><button class="icon-btn lg" data-conn-remove="${c.id}" data-confirm aria-label="${esc(t('remove'))}">${icon('x')}</button>`)).join('')}
+        ${outgoing.map((c) => person(c, `<span class="status-pill pending">${esc(t('waiting'))}</span><button class="icon-btn lg" data-conn-remove="${c.id}" aria-label="${esc(t('remove'))}">${icon('x')}</button>`)).join('')}</ul>`
+    : `<div class="empty-card">${icon('user-plus')}<p>${esc(t('noConnections'))}</p></div>`;
+  html += '</div>';
+  $('#connections').innerHTML = html;
+}
+
+$('#connections').addEventListener('click', async (e) => {
+  const acc = e.target.closest('[data-conn-accept]');
+  const rem = e.target.closest('[data-conn-remove]');
+  const meet = e.target.closest('[data-conn-meet]');
+  if (meet) return openMeetingForm({ attendeeIds: [meet.dataset.connMeet] });
+  try {
+    if (acc) {
+      state.connections = (await api(`/api/connections/${acc.dataset.connAccept}/accept`, { method: 'POST' })).connections;
+      toast(t('connAccepted'));
+    } else if (rem) {
+      if (rem.hasAttribute('data-confirm') && !confirm(t('confirmRemoveConn'))) return;
+      state.connections = (await api(`/api/connections/${rem.dataset.connRemove}`, { method: 'DELETE' })).connections;
+      toast(t('connRemoved'));
+    } else return;
+    state.notif.requests = state.connections.filter((c) => c.status === 'pending' && c.direction === 'in').length;
+    updateBadges();
+    renderConnections();
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
+$('#connect-open').addEventListener('click', () => {
+  $('#connect-form').reset();
+  $('#connect-result').innerHTML = '';
+  openSheet('sheet-connect');
+  if (matchMedia('(hover: hover)').matches) setTimeout(() => $('#connect-form').email.focus(), 150);
+});
+
+$('#connect-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = e.target.email.value.trim();
+  const btn = e.target.querySelector('[type=submit]');
+  busy(btn, true);
+  try {
+    state.connections = (await api('/api/connections', { method: 'POST', body: { email } })).connections;
+    closeSheets();
+    renderConnections();
+    toast(t('connRequested'));
+  } catch (err) {
+    if (err.status === 404) {
+      const link = location.origin;
+      const body = t('inviteEmailBody', { link, name: state.user.name });
+      const gmail = `https://mail.google.com/mail/?${new URLSearchParams({ view: 'cm', fs: '1', to: email, su: t('inviteEmailSubject'), body })}`;
+      $('#connect-result').innerHTML = `<div class="callout yellow">${icon('alert')}<div class="grow"><span>${esc(err.message)}</span>
+        <a class="btn ghost" href="${esc(gmail)}" target="_blank" rel="noopener" style="align-self:flex-start">${icon('mail')}${esc(t('notOnMudirInvite'))}</a></div></div>`;
+    } else {
+      toast(err.message, true);
+    }
+  } finally {
+    busy(btn, false);
+  }
 });
 
 // ---------- Ask Mudir ----------
@@ -1051,6 +1503,7 @@ function openAssistant(text, { voice: fromVoice = false, listen = false } = {}) 
   $('#as-mic').hidden = !voiceSupported();
   updateSpeechLangBtn();
   $('#as-examples').hidden = $('#as-thread').children.length > 0;
+  if (!state.historyLoaded) loadHistory();
   if (text) {
     lastWasVoice = fromVoice;
     runCommand(text);
@@ -1095,34 +1548,170 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && voice) finishVoice();
 });
 
+// Earlier conversation, so follow-ups ("make it shorter") still make sense after closing the app.
+async function loadHistory() {
+  state.historyLoaded = true;
+  try {
+    const { messages } = await api('/api/assistant/history');
+    if (!messages.length || $('#as-thread').children.length) return;
+    const frag = document.createDocumentFragment();
+    for (const m of messages.slice(-12)) {
+      const el = document.createElement('div');
+      el.className = `as-msg history ${m.role === 'user' ? 'me' : 'mudir'}`;
+      el.innerHTML = m.role === 'user' ? esc(m.text) : `${icon('sparkle')}<span>${esc(m.text)}</span>`;
+      el.dir = 'auto';
+      frag.append(el);
+    }
+    $('#as-thread').prepend(frag);
+    $('#as-examples').hidden = true;
+    $('#as-thread').lastElementChild?.scrollIntoView({ block: 'end' });
+  } catch { /* history is a convenience */ }
+}
+
+$('#as-new').addEventListener('click', async () => {
+  try {
+    await api('/api/assistant/history', { method: 'DELETE' });
+  } catch { /* the thread still clears locally */ }
+  $('#as-thread').innerHTML = '';
+  $('#as-examples').hidden = false;
+  toast(t('chatCleared'));
+});
+
 async function runCommand(text) {
   $('#as-input').value = '';
   $('#as-examples').hidden = true;
-  addMsg('me', esc(text));
+  addMsg('me', esc(text)).dir = 'auto';
   const pending = addMsg('mudir thinking', `${icon('sparkle')}<span>${esc(t('thinking'))}</span>`);
   try {
-    const res = await api('/api/assistant', { method: 'POST', body: { text, today: today() } });
+    const now = new Date();
+    const res = await api('/api/assistant', {
+      method: 'POST',
+      body: {
+        text,
+        today: today(),
+        time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Qatar',
+      },
+    });
     state.user = res.user;
     pending.classList.remove('thinking');
     pending.innerHTML = `${icon('sparkle')}<span>${esc(res.reply)}</span>`;
+    pending.dir = 'auto';
     speak(res.reply);
-    if (res.action === 'email') renderEmailCard(res.email);
-    if (res.action === 'task' && res.task) {
-      state.tasks.push(res.task);
-      sortTasks();
-      render();
-      const card = document.createElement('div');
-      card.className = 'as-card';
-      card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('taskAdded'))}</div>
-        <div class="row gap"><span class="strong grow">${esc(res.task.title)}</span><span class="tag">${icon('calendar')}${esc(fmtDate(res.task.date))}${res.task.time ? ' · ' + esc(fmtTime(res.task.time)) : ''}</span></div>
-        <button class="btn ghost lg" data-open="${res.task.id}">${esc(t('openTask'))}</button>`;
-      $('#as-thread').append(card);
-      card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    for (const note of res.remembered || []) {
+      const el = document.createElement('div');
+      el.className = 'as-memory';
+      el.innerHTML = `${icon('brain')}<span>${esc(t('rememberedNote', { text: note }))}</span>`;
+      $('#as-thread').append(el);
     }
+    for (const action of res.actions || []) {
+      if (action.type === 'email') renderEmailCard(action);
+      if (action.type === 'meeting') renderMeetingCard(action);
+      if (action.type === 'task' && action.task) renderTaskCard(action.task);
+    }
+    $('#as-thread').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   } catch (err) {
     pending.classList.remove('thinking');
     pending.innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`;
   }
+}
+
+function renderTaskCard(task) {
+  state.tasks.push(task);
+  sortTasks();
+  render();
+  const card = document.createElement('div');
+  card.className = 'as-card';
+  card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('taskAdded'))}</div>
+    <div class="row gap"><span class="strong grow" dir="auto">${esc(task.title)}</span>${task.date ? `<span class="tag">${icon('calendar')}${esc(fmtDate(task.date))}${task.time ? ' · ' + esc(fmtTime(task.time)) : ''}</span>` : ''}</div>
+    <button class="btn ghost lg" data-open="${task.id}">${esc(t('openTask'))}</button>`;
+  $('#as-thread').append(card);
+}
+
+// A prepared meeting: review time, people and clashes, then send the invitation.
+function renderMeetingCard(meeting) {
+  const attendees = [...meeting.attendees];
+  const card = document.createElement('div');
+  card.className = 'as-card';
+  const people = acceptedConnections();
+
+  function draw() {
+    card.innerHTML = `
+      <div class="row gap"><svg class="ic" style="color:var(--purple-t)"><use href="#i-meeting"/></svg><input class="prop-input wide strong" data-f="title" value="${esc(meeting.title)}" dir="auto" style="font-size:1.05rem" /></div>
+      <div class="row gap wrap">
+        <label class="field grow"><span>${esc(t('fDate'))}</span><input type="date" data-f="date" value="${esc(meeting.date)}" /></label>
+        <label class="field grow"><span>${esc(t('fTime'))}</span><input type="time" data-f="time" value="${esc(meeting.time)}" /></label>
+        <label class="field grow"><span>${esc(t('duration'))}</span><input type="number" min="5" max="600" step="5" data-f="durationMin" value="${meeting.durationMin}" /></label>
+      </div>
+      <div><div class="label">${esc(t('attendees'))}</div>
+        <div class="rcpts">${attendees.map((a, i) => `<span class="rcpt">${esc(a.name)}<button type="button" data-rm="${i}" aria-label="${esc(t('remove'))}">${icon('x')}</button></span>`).join('')}
+          ${people.filter((p) => !attendees.some((a) => a.id === p.id)).length
+            ? `<select class="prop-input" data-add-att><option value="">+</option>${people.filter((p) => !attendees.some((a) => a.id === p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>`
+            : ''}
+        </div>
+        ${meeting.unmatched?.length ? `<div class="callout yellow" style="margin-top:8px">${icon('alert')}<span>${esc(t('notFound', { names: meeting.unmatched.join('، ') }))} · <a href="#people" data-view="people">${esc(t('connect'))}</a></span></div>` : ''}
+      </div>
+      ${meeting.location ? `<p class="muted small row gap">${icon('pin')}<span dir="auto">${esc(meeting.location)}</span></p>` : ''}
+      <div data-conflicts>${conflictsHtml(meeting.conflicts)}</div>
+      <div class="as-actions">
+        <button class="btn primary xl" data-send-meeting ${attendees.length ? '' : 'disabled'}>${icon('send')}${esc(t('sendInvite'))}</button>
+        <button class="btn quiet lg" data-cancel>${esc(t('cancel'))}</button>
+      </div>`;
+  }
+  draw();
+
+  let checkTimer = null;
+  const recheck = () => {
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(async () => {
+      try {
+        const { conflicts } = await api('/api/meetings/check', { method: 'POST', body: { ...meeting, attendeeIds: attendees.map((a) => a.id) } });
+        meeting.conflicts = conflicts;
+        const box = card.querySelector('[data-conflicts]');
+        if (box) box.innerHTML = conflictsHtml(conflicts);
+      } catch { /* advisory */ }
+    }, 300);
+  };
+  card.addEventListener('change', (e) => {
+    const f = e.target.dataset.f;
+    if (f) {
+      meeting[f] = f === 'durationMin' ? Number(e.target.value) : e.target.value;
+      if (f !== 'title') recheck();
+    }
+    if (e.target.matches('[data-add-att]') && e.target.value) {
+      const p = people.find((x) => x.id === e.target.value);
+      if (p) attendees.push({ id: p.id, name: p.name });
+      draw();
+      recheck();
+    }
+  });
+  card.addEventListener('click', async (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) {
+      attendees.splice(Number(rm.dataset.rm), 1);
+      draw();
+      return recheck();
+    }
+    if (e.target.closest('[data-cancel]')) {
+      card.innerHTML = `<p class="muted">${esc(t('cancelled'))}</p>`;
+      return;
+    }
+    const send = e.target.closest('[data-send-meeting]');
+    if (send) {
+      busy(send, true, t('sending'));
+      try {
+        await api('/api/meetings', { method: 'POST', body: { ...meeting, attendeeIds: attendees.map((a) => a.id), key: meeting.key } });
+        card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('inviteSent'))}</div>`;
+        speak(t('inviteSent'));
+        state.meetingsRange = '';
+        render();
+      } catch (err) {
+        toast(err.message, true);
+        busy(send, false);
+      }
+    }
+  });
+  $('#as-thread').append(card);
 }
 
 // The prepared email: the user reviews recipients, subject and text before anything is sent.
@@ -1191,7 +1780,7 @@ function renderEmailCard(email) {
       try {
         const res = await api('/api/email/send', {
           method: 'POST',
-          body: { recipients: recipients.map((r) => r.email), subject: email.subject, body: email.body, confirm: true },
+          body: { recipients: recipients.map((r) => r.email), subject: email.subject, body: email.body, confirm: true, key: email.key },
         });
         state.user = res.user;
         card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('sentToN', { n: res.sent }))}</div>`;
@@ -1214,6 +1803,7 @@ function groupsList() {
 }
 
 function renderPeople() {
+  renderConnections();
   $('#group-options').innerHTML = groupsList().map((g) => `<option value="${esc(g)}"></option>`).join('');
   if (!state.contacts.length) {
     $('#people-list').innerHTML = `<div class="empty-card">${icon('users')}<p>${esc(t('peopleEmpty'))}</p>
@@ -1595,7 +2185,7 @@ function startSend() {
   if (!to) return toast(t('needRecipient'), true);
   if (!$('#d-cemail').checkValidity()) return toast(t('invalidEmail'), true);
   if (!subject || !body.trim()) return toast(t('needSubjectBody'), true);
-  state.pendingSend = { taskId: state.detailId, to, subject, body };
+  state.pendingSend = { taskId: state.detailId, to, subject, body, key: newKey() };
   flushSave();
   $('#confirm-preview').innerHTML = `
     <dl>
@@ -1629,6 +2219,26 @@ $('#confirm-send').addEventListener('click', async () => {
   }
 });
 
+// ---------- Memory ----------
+async function renderMemory() {
+  const card = $('#memory-card');
+  let memories = [];
+  try {
+    ({ memories } = await api('/api/memories'));
+  } catch { /* shown as empty */ }
+  card.innerHTML = `<h3 class="card-title row gap">${icon('brain')}${esc(t('memoryTitle'))}</h3>
+    <p class="muted small" style="margin-bottom:10px">${esc(t('memoryHelp'))}</p>
+    ${memories.length
+      ? `<ul class="memory-list">${memories.map((m) => `<li><span dir="auto">${esc(m.content)}</span><button class="icon-btn" data-forget="${m.id}" aria-label="${esc(t('forget'))}" title="${esc(t('forget'))}">${icon('x')}</button></li>`).join('')}</ul>`
+      : `<p class="muted">${esc(t('memoryEmpty'))}</p>`}`;
+}
+$('#memory-card').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-forget]');
+  if (!b) return;
+  await api(`/api/memories/${b.dataset.forget}`, { method: 'DELETE' });
+  renderMemory();
+});
+
 // ---------- Settings ----------
 async function renderSettings() {
   const u = state.user;
@@ -1657,6 +2267,8 @@ async function renderSettings() {
     renderSettings();
     toast(t('disconnectedToast'));
   });
+
+  renderMemory();
 
   const siriLink = `${location.origin}/?ask=`;
   $('#siri-card').innerHTML = `

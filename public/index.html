@@ -47,6 +47,12 @@
       <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></symbol>
       <symbol id="i-siri" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M5 12c1.5-3 2.5-3 3.5 0s2 3 3.5 0 2-3 3.5 0 2 3 3.5 0"/></symbol>
       <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+      <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/></symbol>
+      <symbol id="i-meeting" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/><circle cx="9.5" cy="15" r="1.6"/><circle cx="14.5" cy="15" r="1.6"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h0a2.5 2.5 0 0 0 3-2.5V6.5A2.5 2.5 0 0 0 9 4zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h0a2.5 2.5 0 0 1-3-2.5V6.5A2.5 2.5 0 0 1 15 4z"/></symbol>
+      <symbol id="i-new-chat" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.5L3 21l1.6-5.2A8.5 8.5 0 1 1 21 12z"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
       <symbol id="i-google" viewBox="0 0 24 24"><path fill="#4285F4" stroke="none" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.4h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.3-4.7 3.3-8.1z"/><path fill="#34A853" stroke="none" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" stroke="none" d="M5.8 14.2a6.6 6.6 0 0 1 0-4.3V7.1H2.1a11 11 0 0 0 0 9.9z"/><path fill="#EA4335" stroke="none" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></symbol>
     </defs>
   </svg>
@@ -105,7 +111,7 @@
       <button class="ask-btn" type="button" data-ask data-voice><svg class="ic"><use href="#i-mic"/></svg><span data-i18n="askMudir"></span></button>
       <nav class="side-nav">
         <button class="nav-item" data-view="calendar"><svg class="ic"><use href="#i-calendar"/></svg><span data-i18n="navCalendar"></span></button>
-        <button class="nav-item" data-view="people"><svg class="ic"><use href="#i-users"/></svg><span data-i18n="navPeople"></span></button>
+        <button class="nav-item" data-view="people"><svg class="ic"><use href="#i-users"/></svg><span data-i18n="navPeople"></span><span class="badge" data-badge="people" hidden></span></button>
         <button class="nav-item" data-view="settings"><svg class="ic"><use href="#i-settings"/></svg><span data-i18n="navSettings"></span></button>
       </nav>
       <div class="side-foot">
@@ -133,6 +139,7 @@
             <span class="ask-orb" data-voice><svg class="ic"><use href="#i-mic"/></svg></span>
             <span class="ask-text"><strong data-i18n="askMudir"></strong><small data-i18n="askHint"></small></span>
           </button>
+          <div id="invites" class="invites" hidden></div>
           <div class="calendar">
             <div class="cal-grid cal-week" id="cal-week"></div>
             <div class="cal-grid cal-days" id="cal-grid"></div>
@@ -143,11 +150,16 @@
         <section class="view" id="view-people" hidden>
           <header class="page-head">
             <h1 data-i18n="navPeople"></h1>
-            <div class="row gap">
-              <button class="btn ghost lg" id="people-import"><svg class="ic"><use href="#i-upload"/></svg><span data-i18n="importList"></span></button>
-              <button class="btn primary lg" id="people-add"><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="addPerson"></span></button>
-            </div>
+            <button class="btn primary lg" id="connect-open"><svg class="ic"><use href="#i-user-plus"/></svg><span data-i18n="connect"></span></button>
           </header>
+          <div id="connections" class="stack"></div>
+          <div class="section-head" style="margin-top:8px">
+            <h2 data-i18n="contactsTitle"></h2>
+            <div class="row gap">
+              <button class="btn ghost" id="people-import"><svg class="ic"><use href="#i-upload"/></svg><span data-i18n="importList"></span></button>
+              <button class="btn ghost" id="people-add"><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="addPerson"></span></button>
+            </div>
+          </div>
           <div id="people-list" class="stack"></div>
         </section>
 
@@ -164,6 +176,7 @@
               <button class="btn ghost danger-text" id="logout"><svg class="ic"><use href="#i-logout"/></svg><span data-i18n="logout"></span></button>
             </div>
             <div class="card" id="gmail-card"></div>
+            <div class="card" id="memory-card"></div>
             <div class="card" id="siri-card"></div>
             <div class="card">
               <h3 class="card-title" data-i18n="language"></h3>
@@ -188,7 +201,7 @@
 
     <nav class="tabbar">
       <button class="tab" data-view="calendar"><svg class="ic"><use href="#i-calendar"/></svg><span data-i18n="navCalendar"></span></button>
-      <button class="tab" data-view="people"><svg class="ic"><use href="#i-users"/></svg><span data-i18n="navPeople"></span></button>
+      <button class="tab" data-view="people"><span class="tab-ic"><svg class="ic"><use href="#i-users"/></svg><span class="badge" data-badge="people" hidden></span></span><span data-i18n="navPeople"></span></button>
       <button class="tab" data-view="settings"><svg class="ic"><use href="#i-settings"/></svg><span data-i18n="navSettings"></span></button>
     </nav>
   </div>
@@ -201,7 +214,10 @@
     <div class="sheet-grip"></div>
     <div class="sheet-head">
       <h3 id="as-title" class="row gap"><span class="ask-orb sm"><svg class="ic"><use href="#i-sparkle"/></svg></span><span data-i18n="brand"></span></h3>
-      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="row" style="gap:2px">
+        <button class="icon-btn lg" type="button" id="as-new" data-i18n-aria="newChat" data-i18n-title="newChat"><svg class="ic"><use href="#i-new-chat"/></svg></button>
+        <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
     </div>
     <div class="as-thread" id="as-thread"></div>
     <div class="as-examples" id="as-examples"></div>
@@ -225,7 +241,9 @@
       <h3 id="day-title"></h3>
       <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
+    <ul class="task-list" id="day-meetings"></ul>
     <ul class="task-list" id="day-list"></ul>
+    <button class="btn ghost lg" type="button" id="day-meeting"><svg class="ic"><use href="#i-meeting"/></svg><span data-i18n="newMeeting"></span></button>
     <form class="add-row" id="day-add">
       <input name="title" maxlength="200" data-i18n-ph="addTaskPh" required />
       <input name="time" type="time" class="time-input" />
@@ -282,6 +300,54 @@
       <label class="field"><span data-i18n="importHelp"></span><textarea name="text" rows="7" dir="ltr" placeholder="Sara Ahmed, sara@company.com&#10;Omar Ali, omar@company.com"></textarea></label>
       <label class="field"><span data-i18n="group"></span><input name="group" list="group-options" maxlength="60" data-i18n-ph="groupPh" /></label>
       <button type="submit" class="btn primary block lg" data-i18n="importBtn"></button>
+    </form>
+  </div>
+
+  <!-- Connect with a Mudir user -->
+  <div class="sheet" id="sheet-connect" hidden role="dialog" aria-modal="true" aria-labelledby="connect-title">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 id="connect-title" data-i18n="connect"></h3>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <p class="muted" data-i18n="connectHelp"></p>
+    <form id="connect-form" class="stack">
+      <label class="field"><span data-i18n="email"></span><input name="email" type="email" dir="ltr" required /></label>
+      <div id="connect-result"></div>
+      <button type="submit" class="btn primary block lg" data-i18n="sendRequest"></button>
+    </form>
+  </div>
+
+  <!-- Meeting details -->
+  <div class="sheet" id="sheet-meeting" hidden role="dialog" aria-modal="true">
+    <div class="sheet-grip"></div>
+    <div id="meeting-body"></div>
+  </div>
+
+  <!-- New meeting -->
+  <div class="sheet" id="sheet-meeting-form" hidden role="dialog" aria-modal="true" aria-labelledby="mf-title">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 id="mf-title" data-i18n="newMeeting"></h3>
+      <button class="icon-btn lg" type="button" data-close data-i18n-aria="close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <form id="meeting-form" class="stack">
+      <label class="field"><span data-i18n="meetingTitle"></span><input name="title" required maxlength="200" dir="auto" /></label>
+      <div class="row gap wrap">
+        <label class="field grow"><span data-i18n="fDate"></span><input name="date" type="date" required /></label>
+        <label class="field grow"><span data-i18n="fTime"></span><input name="time" type="time" required /></label>
+        <label class="field grow"><span data-i18n="duration"></span>
+          <select name="durationMin">
+            <option value="15">15</option><option value="30" selected>30</option><option value="45">45</option>
+            <option value="60">60</option><option value="90">90</option><option value="120">120</option>
+          </select>
+        </label>
+      </div>
+      <div class="field"><span data-i18n="attendees"></span><div class="pick" id="mf-attendees"></div></div>
+      <label class="field"><span data-i18n="location"></span><input name="location" maxlength="200" dir="auto" data-i18n-ph="locationPh" /></label>
+      <label class="field"><span data-i18n="notesLabel"></span><textarea name="notes" rows="3" dir="auto"></textarea></label>
+      <div id="mf-conflicts"></div>
+      <button type="submit" class="btn primary block xl"><svg class="ic"><use href="#i-send"/></svg><span data-i18n="sendInvite"></span></button>
     </form>
   </div>
 
