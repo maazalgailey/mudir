@@ -10,8 +10,8 @@ const I18N = {
     otherLang: 'English',
     heroTitle: 'قل ما تريد… ومُدير يُنجزه',
     heroText: 'تقويمك، فريقك، وبريدك في مكان واحد. اطلب بصوتك أو عبر Siri، وراجع كل رسالة قبل إرسالها.',
-    heroDemoMe: '«أرسل لموظفيني دعوة لزيارة المتحف يوم الخميس»',
-    heroDemoMudir: 'جهّزت الرسالة إلى 12 موظفًا. هل أرسلها؟',
+    heroDemoMe: '«ابي اجتماع ويّا سارة باچر الساعة ٣، وارسل للموظفين إن الدوام يبدأ ٩»',
+    heroDemoMudir: 'جهّزت دعوة الاجتماع مع سارة (لا تعارض في الوقت) ورسالة الدوام إلى 12 موظفًا. هل أرسلهما؟',
     welcome: 'أهلًا بك',
     welcomeSub: 'سجّل الدخول للمتابعة',
     continueGoogle: 'المتابعة باستخدام Google',
@@ -45,7 +45,7 @@ const I18N = {
     more: '+{n} أخرى',
     // Assistant
     thinking: 'لحظة…',
-    listening: 'أستمع… توقّف عن الكلام عندما تنتهي',
+    listening: 'أستمع… خذ وقتك، سأنتظر حتى تنتهي',
     noSpeech: 'المتصفح لا يدعم الإدخال الصوتي هنا. اكتب طلبك بدلًا من ذلك.',
     stopSpeaking: 'إنهاء التحدث',
     transcribing: 'أكتب ما قلته…',
@@ -55,9 +55,25 @@ const I18N = {
     micMissing: 'لم يتم العثور على ميكروفون',
     speechLang: 'لغة التحدث',
     speechLangSet: 'لغة التحدث: {lang}',
-    ex1: 'أرسل لموظفيني دعوة لزيارة المتحف يوم الخميس',
-    ex2: 'ذكّرني بالاجتماع غدًا الساعة 10 صباحًا',
-    ex3: 'ماذا لديّ هذا الأسبوع؟',
+    ex1: 'أرسل للموظفين إيميل إن الدوام باچر يبدأ الساعة ٩ الصبح',
+    ex2: 'ابي اجتماع ويّا سارة يوم الأحد الساعة ١١ عن ميزانية الربع الجاي',
+    ex3: 'ارسل لعمر واتساب إني بتأخر ربع ساعة',
+    ex4: 'تذكّر إن توقيعي د. مازن الجيلي، مدير العمليات',
+    ex5: 'ذكّرني أجدد البطاقة الخميس الجاي وراسل خالد عن موعد التسليم',
+    ex6: 'وش عندي هالأسبوع؟ وفي أي يوم أنا فاضي العصر؟',
+    exTitle: 'جرّب أن تقول:',
+    phoneLabel: 'رقم الجوال (واتساب)',
+    emailOptional: 'البريد الإلكتروني (اختياري)',
+    waTitle: 'رسالة واتساب',
+    smsTitle: 'رسالة نصية',
+    messageText: 'نص الرسالة',
+    openWhatsApp: 'افتح في واتساب',
+    openSms: 'افتح الرسائل',
+    opened: 'تم الفتح',
+    waHint: 'يفتح واتساب والرسالة مكتوبة؛ اضغط إرسال هناك. لكل شخص زر خاص به.',
+    noPhone: 'بدون رقم جوال: {names}',
+    noEmail: 'بدون بريد إلكتروني: {names}',
+    addPhoneHint: 'أضف أرقامهم في «الأشخاص»',
     to: 'إلى',
     subject: 'الموضوع',
     body: 'النص',
@@ -133,7 +149,7 @@ const I18N = {
     addPerson: 'إضافة شخص',
     editPerson: 'تعديل',
     importList: 'استيراد قائمة',
-    importHelp: 'شخص في كل سطر: الاسم، البريد',
+    importHelp: 'شخص في كل سطر: الاسم، البريد و/أو رقم الجوال',
     importBtn: 'استيراد',
     imported: 'تمت إضافة {n}',
     group: 'المجموعة',
@@ -250,8 +266,8 @@ const I18N = {
     otherLang: 'العربية',
     heroTitle: 'Say it. Mudir gets it done.',
     heroText: 'Your calendar, your team and your email in one place. Ask by voice or Siri, and review every message before it goes out.',
-    heroDemoMe: '“Email my employees an invite to visit the museum on Thursday”',
-    heroDemoMudir: 'The email to your 12 employees is ready. Should I send it?',
+    heroDemoMe: '“Set up a meeting with Sara tomorrow at 3, and tell the team work starts at 9”',
+    heroDemoMudir: 'The invite to Sara (no clashes) and the email to your 12 employees are ready. Send both?',
     welcome: 'Welcome',
     welcomeSub: 'Sign in to continue',
     continueGoogle: 'Continue with Google',
@@ -284,7 +300,7 @@ const I18N = {
     emptyDay: 'Nothing on this day yet',
     more: '+{n} more',
     thinking: 'One moment…',
-    listening: 'Listening… just stop talking when you’re done',
+    listening: 'Listening… take your time, I’ll wait until you finish',
     noSpeech: "Voice input isn't supported in this browser. Type your request instead.",
     stopSpeaking: 'Finish speaking',
     transcribing: 'Writing down what you said…',
@@ -294,9 +310,25 @@ const I18N = {
     micMissing: 'No microphone was found',
     speechLang: 'Speaking language',
     speechLangSet: 'Speaking language: {lang}',
-    ex1: 'Email my employees an invite to visit the museum on Thursday',
-    ex2: 'Remind me about the meeting tomorrow at 10am',
-    ex3: "What's on this week?",
+    ex1: 'Email my employees that work starts at 9am tomorrow',
+    ex2: 'Set up a meeting with Sara on Sunday at 11 about next quarter’s budget',
+    ex3: "WhatsApp Omar that I'm running 15 minutes late",
+    ex4: 'Remember my signature is Dr. Mazen Algailey, Head of Operations',
+    ex5: 'Remind me to renew my ID next Thursday and email Khalid about the deadline',
+    ex6: "What's on this week, and which afternoon am I free?",
+    exTitle: 'Try saying:',
+    phoneLabel: 'Mobile number (WhatsApp)',
+    emailOptional: 'Email (optional)',
+    waTitle: 'WhatsApp message',
+    smsTitle: 'Text message',
+    messageText: 'Message',
+    openWhatsApp: 'Open in WhatsApp',
+    openSms: 'Open Messages',
+    opened: 'Opened',
+    waHint: 'Opens WhatsApp with the message written; tap send there. Each person has their own button.',
+    noPhone: 'No mobile number: {names}',
+    noEmail: 'No email address: {names}',
+    addPhoneHint: 'Add their numbers in People',
     to: 'To',
     subject: 'Subject',
     body: 'Message',
@@ -370,7 +402,7 @@ const I18N = {
     addPerson: 'Add person',
     editPerson: 'Edit',
     importList: 'Import list',
-    importHelp: 'One person per line: Name, email',
+    importHelp: 'One person per line: name, email and/or mobile number',
     importBtn: 'Import',
     imported: 'Added {n}',
     group: 'Group',
@@ -999,6 +1031,9 @@ document.addEventListener('click', async (e) => {
 // ---------- Meetings ----------
 const responseLabel = (r) => t({ accepted: 'rAccepted', declined: 'rDeclined', pending: 'rPending' }[r] || 'rPending');
 const findMeeting = (mid) => state.meetings.find((x) => x.id === mid) || (state.notif.invites || []).find((x) => x.id === mid);
+// WhatsApp needs the number without "+"; iPhones separate the SMS body with "&", others with "?".
+const waLink = (phone, text = '') => `https://wa.me/${String(phone).replace(/\D/g, '')}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+const smsLink = (phone, text = '') => `sms:${phone}${text ? `${/iPhone|iPad|Macintosh/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(text)}` : ''}`;
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
 function meetingRow(m) {
@@ -1305,6 +1340,8 @@ function unlockSpeechOutput() {
 
 function startVoice() {
   if (voice) return finishVoice(); // tapping again means "I'm done"
+  // Never talk over the user: opening the mic silences Mudir straight away.
+  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch { /* nothing to stop */ }
   unlockSpeechOutput();
   if (useServerSpeech()) return startRecording();
   if (SpeechRec) return startBrowserRecognition();
@@ -1376,12 +1413,15 @@ async function startRecording() {
       const threshold = Math.max(0.015, floor * 2.5);
       setLevel(Math.min(1, rms * 9));
       if (rms > threshold) {
+        if (s.lastLoud) s.speechMs = (s.speechMs || 0) + Math.min(now - s.lastLoud, 150);
         s.heard = true;
         s.lastLoud = now;
       }
       // Auto-stop after a pause, but only when the level meter is known to work on this device.
-      if (s.levelWorks && s.heard && now - s.lastLoud > 1600 && elapsed > 1200) return finishVoice();
-      if (s.levelWorks && !s.heard && elapsed > 8000) return finishVoice();
+      // Patient auto-stop: only after real speech (0.6 s+) followed by a 3-second pause, so thinking
+      // pauses mid-sentence never cut the user off. Tapping the mic still finishes immediately.
+      if (s.levelWorks && (s.speechMs || 0) > 600 && now - s.lastLoud > 3000) return finishVoice();
+      if (s.levelWorks && !s.heard && elapsed > 12000) return finishVoice();
     }
     if (elapsed > 60000) return finishVoice();
   };
@@ -1400,8 +1440,8 @@ function startBrowserRecognition() {
   setVoiceUI('recording', t('listening'));
   // Keep the latest words whether or not the browser marks them final (iPhones often never do).
   rec.onresult = (e) => {
+    // Kept quietly: nothing is written on screen while the mic is open.
     s.text = [...e.results].map((r) => r[0].transcript).join(' ').trim();
-    $('#as-input').value = s.text;
   };
   rec.onerror = (e) => {
     if (['not-allowed', 'service-not-allowed'].includes(e.error)) toast(t('micDenied'), true);
@@ -1490,8 +1530,11 @@ function stopListening() {
   finishVoice({ cancel: true });
 }
 
+// Each example shows a different ability: group email, meeting, WhatsApp, memory, multi-step, schedule question.
 function renderExamples() {
-  $('#as-examples').innerHTML = ['ex1', 'ex2', 'ex3'].map((k) => `<button type="button" data-example="${esc(t(k))}">${esc(t(k))}</button>`).join('');
+  $('#as-examples').innerHTML =
+    `<p class="muted small" style="width:100%">${esc(t('exTitle'))}</p>` +
+    ['ex1', 'ex2', 'ex3', 'ex4', 'ex5', 'ex6'].map((k) => `<button type="button" data-example="${esc(t(k))}" dir="auto">${esc(t(k))}</button>`).join('');
 }
 $('#as-examples').addEventListener('click', (e) => {
   const b = e.target.closest('[data-example]');
@@ -1524,7 +1567,8 @@ function addMsg(kind, html) {
 }
 
 function speak(text) {
-  if (!lastWasVoice || !('speechSynthesis' in window) || !text) return;
+  // Stay quiet while the user is speaking.
+  if (!lastWasVoice || voice || !('speechSynthesis' in window) || !text) return;
   try {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = state.lang === 'ar' ? 'ar-SA' : 'en-US';
@@ -1594,6 +1638,8 @@ async function runCommand(text) {
       },
     });
     state.user = res.user;
+    // If the user started speaking again meanwhile, hold the answer until the mic closes.
+    while (voice) await new Promise((r) => setTimeout(r, 200));
     pending.classList.remove('thinking');
     pending.innerHTML = `${icon('sparkle')}<span>${esc(res.reply)}</span>`;
     pending.dir = 'auto';
@@ -1607,6 +1653,7 @@ async function runCommand(text) {
     for (const action of res.actions || []) {
       if (action.type === 'email') renderEmailCard(action);
       if (action.type === 'meeting') renderMeetingCard(action);
+      if (action.type === 'message') renderMessageCard(action);
       if (action.type === 'task' && action.task) renderTaskCard(action.task);
     }
     $('#as-thread').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1625,6 +1672,65 @@ function renderTaskCard(task) {
   card.innerHTML = `<div class="as-done">${icon('check')}${esc(t('taskAdded'))}</div>
     <div class="row gap"><span class="strong grow" dir="auto">${esc(task.title)}</span>${task.date ? `<span class="tag">${icon('calendar')}${esc(fmtDate(task.date))}${task.time ? ' · ' + esc(fmtTime(task.time)) : ''}</span>` : ''}</div>
     <button class="btn ghost lg" data-open="${task.id}">${esc(t('openTask'))}</button>`;
+  $('#as-thread').append(card);
+}
+
+// A prepared WhatsApp/SMS message. Sending happens in the user's own WhatsApp: one button per person.
+function renderMessageCard(m) {
+  const card = document.createElement('div');
+  card.className = 'as-card';
+  let channel = m.channel;
+  function draw() {
+    const isWa = channel === 'whatsapp';
+    card.innerHTML = `
+      <div class="row gap"><svg class="ic" style="color:#25d366"><use href="#i-${isWa ? 'whatsapp' : 'phone'}"/></svg><strong>${esc(t(isWa ? 'waTitle' : 'smsTitle'))}</strong>
+        <div class="seg mini" style="margin-inline-start:auto"><button type="button" class="seg-btn ${isWa ? 'active' : ''}" data-ch="whatsapp">WhatsApp</button><button type="button" class="seg-btn ${isWa ? '' : 'active'}" data-ch="sms">SMS</button></div></div>
+      <label class="field"><span>${esc(t('messageText'))}</span><textarea data-body rows="4" dir="auto">${esc(m.body)}</textarea></label>
+      ${m.recipients.length
+        ? `<ul class="people">${m.recipients.map((r, i) => `<li class="person">
+            <span class="avatar">${esc(initial(r.name))}</span>
+            <div class="grow"><p class="strong">${esc(r.name)}</p><p class="muted small" dir="ltr" style="text-align:start">${esc(r.phone)}</p></div>
+            <a class="btn ${r.opened ? 'ghost' : 'primary'}" data-open-msg="${i}" target="_blank" rel="noopener">${r.opened ? icon('check') + esc(t('opened')) : icon(isWa ? 'whatsapp' : 'phone') + esc(t(isWa ? 'openWhatsApp' : 'openSms'))}</a>
+          </li>`).join('')}</ul>
+          <p class="muted small">${esc(t('waHint'))}</p>`
+        : `<p class="muted small">${esc(t('noRecipientsYet'))}</p>`}
+      ${m.noPhone?.length ? `<div class="callout yellow">${icon('alert')}<span>${esc(t('noPhone', { names: m.noPhone.join('، ') }))} · <a href="#people" data-view="people">${esc(t('addPhoneHint'))}</a></span></div>` : ''}
+      ${m.unmatched?.length ? `<div class="callout yellow">${icon('alert')}<span>${esc(t('notFound', { names: m.unmatched.join('، ') }))}</span></div>` : ''}
+      <div class="as-actions"><button class="btn ghost lg" data-copy-msg>${icon('copy')}${esc(t('copy'))}</button><button class="btn quiet lg" data-cancel>${esc(t('cancel'))}</button></div>`;
+  }
+  draw();
+  card.addEventListener('input', (e) => {
+    if (e.target.matches('[data-body]')) m.body = e.target.value;
+  });
+  card.addEventListener('click', async (e) => {
+    const ch = e.target.closest('[data-ch]');
+    if (ch) {
+      channel = ch.dataset.ch;
+      return draw();
+    }
+    const open = e.target.closest('[data-open-msg]');
+    if (open) {
+      const r = m.recipients[Number(open.dataset.openMsg)];
+      open.href = channel === 'whatsapp' ? waLink(r.phone, m.body) : smsLink(r.phone, m.body);
+      if (channel === 'sms') {
+        e.preventDefault();
+        location.href = open.href;
+      }
+      r.opened = true;
+      setTimeout(draw, 300);
+      return;
+    }
+    if (e.target.closest('[data-copy-msg]')) {
+      try {
+        await navigator.clipboard.writeText(m.body);
+        toast(t('copied'));
+      } catch {
+        toast(t('copyFailed'), true);
+      }
+      return;
+    }
+    if (e.target.closest('[data-cancel]')) card.innerHTML = `<p class="muted">${esc(t('cancelled'))}</p>`;
+  });
   $('#as-thread').append(card);
 }
 
@@ -1731,6 +1837,7 @@ function renderEmailCard(email) {
         </div>
         ${n ? '' : `<p class="muted small">${esc(t('noRecipientsYet'))}</p>`}
         ${email.unmatched?.length ? `<div class="callout yellow" style="margin-top:8px">${icon('alert')}<span>${esc(t('notFound', { names: email.unmatched.join('، ') }))} · <a href="#people" data-view="people">${esc(t('addThem'))}</a></span></div>` : ''}
+        ${email.noEmail?.length ? `<div class="callout yellow" style="margin-top:8px">${icon('alert')}<span>${esc(t('noEmail', { names: email.noEmail.join('، ') }))}</span></div>` : ''}
       </div>
       <label class="field"><span>${esc(t('subject'))}</span><input data-subj value="${esc(email.subject)}" dir="auto" /></label>
       <label class="field"><span>${esc(t('body'))}</span><textarea data-body rows="8" dir="auto">${esc(email.body)}</textarea></label>
@@ -1822,7 +1929,8 @@ function renderPeople() {
       </div>
       <ul class="people">${groups[g].map((c) => `<li class="person">
         <span class="avatar">${esc(initial(c.name))}</span>
-        <div class="grow"><p class="strong">${esc(c.name)}</p><p class="muted small" dir="ltr" style="text-align:start">${esc(c.email)}</p></div>
+        <div class="grow"><p class="strong">${esc(c.name)}</p><p class="muted small" dir="ltr" style="text-align:start">${esc([c.phone, c.email].filter(Boolean).join(' · '))}</p></div>
+        ${c.phone ? `<a class="icon-btn lg wa" href="${esc(waLink(c.phone))}" target="_blank" rel="noopener" aria-label="WhatsApp">${icon('whatsapp')}</a>` : ''}
         <button class="icon-btn lg" data-edit-person="${c.id}" aria-label="${esc(t('editPerson'))}">${icon('edit')}</button>
       </li>`).join('')}</ul>
     </div>`)
@@ -1849,6 +1957,7 @@ function openPerson(person) {
   $('#person-title').textContent = person ? t('editPerson') : t('addPerson');
   f.name.value = person?.name || '';
   f.email.value = person?.email || '';
+  f.phone.value = person?.phone || '';
   f.group.value = person ? person.group : groupsList()[0] || '';
   $('#person-delete').hidden = !person;
   openSheet('sheet-person');
@@ -1858,7 +1967,7 @@ function openPerson(person) {
 $('#person-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  const body = { name: f.name.value, email: f.email.value, group: f.group.value };
+  const body = { name: f.name.value, email: f.email.value, phone: f.phone.value, group: f.group.value };
   try {
     if (editingPerson) {
       const { contact } = await api(`/api/contacts/${editingPerson.id}`, { method: 'PATCH', body });
@@ -2143,7 +2252,13 @@ function renderSendRow(cfg = state.config.integrations) {
       $('#d-menu').hidden = true;
     }),
   );
-  $('#d-wa')?.addEventListener('click', () => window.open(`https://wa.me/?text=${encodeURIComponent($('#d-text').value)}`, '_blank', 'noopener'));
+  $('#d-wa')?.addEventListener('click', () => {
+    // Straight to the person's chat when their number is saved in People.
+    const name = $('#d-cname').value.trim();
+    const person = state.contacts.find((c) => c.phone && name && c.name === name);
+    const text = $('#d-text').value;
+    window.open(person ? waLink(person.phone, text) : `https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  });
   $('#d-copy').addEventListener('click', async () => {
     const { subject, body } = draftValues();
     try {

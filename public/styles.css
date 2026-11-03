@@ -749,6 +749,9 @@ main { padding: 0 16px; }
 }
 .speech-lang:hover { background: var(--hover); color: var(--ink); }
 
+.icon-btn.wa { color: #25d366; }
+.as-examples p { margin-bottom: 2px; }
+
 /* ---------- Connections, meetings, memory ---------- */
 .badge {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #e5484d; color: #fff;

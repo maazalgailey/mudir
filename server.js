@@ -59,6 +59,8 @@ const MSG = {
     draftLimit: 'وصلت إلى الحد الشهري للباقة المجانية. اشترك في مُدير برو للاستمرار.',
     assistantEmpty: 'قل أو اكتب ما تريد',
     noSpeechHeard: 'لم أسمع شيئًا، حاول مرة أخرى',
+    invalidPhone: 'رقم الهاتف غير صالح. أضف رمز الدولة إن لم يكن رقمًا قطريًا (مثل +966…)',
+    contactNeedsWay: 'أضف بريدًا إلكترونيًا أو رقم هاتف',
     notOnMudir: 'لا يوجد حساب في مُدير بهذا البريد بعد. أرسل له دعوة للانضمام.',
     cantConnectSelf: 'هذا بريدك أنت',
     connectionNotFound: 'طلب الاتصال غير موجود',
@@ -109,6 +111,8 @@ const MSG = {
     draftLimit: "You've reached this month's free limit. Upgrade to Mudir Pro to keep going.",
     assistantEmpty: 'Say or type what you need',
     noSpeechHeard: "I didn't hear anything. Please try again.",
+    invalidPhone: 'That phone number is not valid. Add the country code unless it is a Qatari number (e.g. +966…)',
+    contactNeedsWay: 'Add an email or a phone number',
     notOnMudir: "There's no Mudir account with this email yet. Send them an invite to join.",
     cantConnectSelf: "That's your own email",
     connectionNotFound: 'Connection request not found',
@@ -237,6 +241,12 @@ app.use((req, res, next) => {
 
 // Express 4 does not catch rejected promises, so async routes go through this.
 const h = (fn) => (req, res, next) => fn(req, res, next).catch(next);
+
+// Microsoft publisher domain verification (Outlook): served once MICROSOFT_CLIENT_ID is set.
+app.get('/.well-known/microsoft-identity-association.json', (req, res) => {
+  if (!process.env.MICROSOFT_CLIENT_ID) return res.status(404).end();
+  res.json({ associatedApplications: [{ applicationId: process.env.MICROSOFT_CLIENT_ID.trim() }] });
+});
 
 app.get('/api/health', h(async (req, res) => {
   await query('SELECT 1');
@@ -445,15 +455,39 @@ app.delete('/api/tasks/:id', auth, h(async (req, res) => {
 
 // ---------- People ----------
 function contactOut(r) {
-  return { id: r.id, name: r.name, email: r.email, group: r.group_name };
+  return { id: r.id, name: r.name, email: r.email, phone: r.phone || '', group: r.group_name };
+}
+
+// International form for WhatsApp/SMS: "+97455123456". Arabic digits, spaces and "00" prefixes are fine;
+// an 8-digit Qatari mobile gets +974. Returns '' for empty and null when it can't be a phone number.
+function normalizePhone(raw) {
+  let s = String(raw || '')
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/[\s\-().]/g, '');
+  if (!s) return '';
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (/^[3567]\d{7}$/.test(s)) s = '+974' + s;
+  if (!s.startsWith('+')) s = '+' + s;
+  return /^\+[1-9]\d{6,14}$/.test(s) ? s : null;
 }
 
 function cleanContact(body) {
   return {
     name: String(body.name || '').trim().slice(0, 120),
     email: String(body.email || '').trim().toLowerCase().slice(0, 200),
+    phone: normalizePhone(body.phone),
     group: String(body.group || '').trim().slice(0, 60),
   };
+}
+
+// A person needs a name and at least one way to reach them.
+function contactError(req, c) {
+  if (!c.name) return msg(req, 'nameRequired');
+  if (c.email && !EMAIL_RE.test(c.email)) return msg(req, 'invalidEmail');
+  if (c.phone === null) return msg(req, 'invalidPhone');
+  if (!c.email && !c.phone) return msg(req, 'contactNeedsWay');
+  return null;
 }
 
 app.get('/api/contacts', auth, h(async (req, res) => {
@@ -463,26 +497,30 @@ app.get('/api/contacts', auth, h(async (req, res) => {
 
 app.post('/api/contacts', auth, h(async (req, res) => {
   const c = cleanContact(req.body);
-  if (!c.name) return fail(res, 400, msg(req, 'nameRequired'));
-  if (!EMAIL_RE.test(c.email)) return fail(res, 400, msg(req, 'invalidEmail'));
-  const row = await one('INSERT INTO contacts (id, user_id, name, email, group_name) VALUES ($1, $2, $3, $4, $5) RETURNING *', [
-    id(), req.user.id, c.name, c.email, c.group,
+  const error = contactError(req, c);
+  if (error) return fail(res, 400, error);
+  const row = await one('INSERT INTO contacts (id, user_id, name, email, phone, group_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [
+    id(), req.user.id, c.name, c.email, c.phone, c.group,
   ]);
   res.json({ contact: contactOut(row) });
 }));
 
-// Paste a list: one person per line as "Name, email" (or just an email).
+// Paste a list: one person per line, with an email, a phone number, or both ("Sara, sara@x.com, 5512 3456").
 app.post('/api/contacts/import', auth, h(async (req, res) => {
   const group = String(req.body.group || '').trim().slice(0, 60);
-  const existing = new Set((await query('SELECT email FROM contacts WHERE user_id = $1', [req.user.id])).map((r) => r.email));
+  const rows = await query('SELECT email, phone FROM contacts WHERE user_id = $1', [req.user.id]);
+  const seen = new Set(rows.flatMap((r) => [r.email, r.phone]).filter(Boolean));
   const added = [];
   for (const line of String(req.body.text || '').split(/\r?\n/).slice(0, 500)) {
-    const email = (line.match(/[^\s,;<>]+@[^\s,;<>]+\.[^\s,;<>]+/) || [])[0]?.toLowerCase();
-    if (!email || existing.has(email)) continue;
-    const name = line.replace(email, '').replace(/[<>,;\t]+/g, ' ').trim() || email.split('@')[0];
-    existing.add(email);
-    added.push(await one('INSERT INTO contacts (id, user_id, name, email, group_name) VALUES ($1, $2, $3, $4, $5) RETURNING *', [
-      id(), req.user.id, name.slice(0, 120), email, group,
+    const email = (line.match(/[^\s,;<>]+@[^\s,;<>]+\.[^\s,;<>]+/) || [])[0]?.toLowerCase() || '';
+    const rest = email ? line.replace(new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), ' ') : line;
+    const phoneRaw = (rest.match(/(?:\+|00)?[\d٠-٩۰-۹][\d٠-٩۰-۹\s\-()]{6,}[\d٠-٩۰-۹]/) || [])[0] || '';
+    const phone = normalizePhone(phoneRaw) || '';
+    if ((!email && !phone) || (email && seen.has(email)) || (phone && seen.has(phone))) continue;
+    const name = rest.replace(phoneRaw, ' ').replace(/[<>,;\t]+/g, ' ').replace(/\s+/g, ' ').trim() || (email ? email.split('@')[0] : phone);
+    [email, phone].filter(Boolean).forEach((x) => seen.add(x));
+    added.push(await one('INSERT INTO contacts (id, user_id, name, email, phone, group_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [
+      id(), req.user.id, name.slice(0, 120), email, phone, group,
     ]));
   }
   res.json({ added: added.map(contactOut) });
@@ -490,10 +528,10 @@ app.post('/api/contacts/import', auth, h(async (req, res) => {
 
 app.patch('/api/contacts/:id', auth, h(async (req, res) => {
   const c = cleanContact(req.body);
-  if (!c.name) return fail(res, 400, msg(req, 'nameRequired'));
-  if (!EMAIL_RE.test(c.email)) return fail(res, 400, msg(req, 'invalidEmail'));
-  const row = await one('UPDATE contacts SET name = $3, email = $4, group_name = $5 WHERE id = $1 AND user_id = $2 RETURNING *', [
-    req.params.id, req.user.id, c.name, c.email, c.group,
+  const error = contactError(req, c);
+  if (error) return fail(res, 400, error);
+  const row = await one('UPDATE contacts SET name = $3, email = $4, phone = $5, group_name = $6 WHERE id = $1 AND user_id = $2 RETURNING *', [
+    req.params.id, req.user.id, c.name, c.email, c.phone, c.group,
   ]);
   if (!row) return fail(res, 404, msg(req, 'contactNotFound'));
   res.json({ contact: contactOut(row) });
@@ -997,10 +1035,19 @@ function mentionsGroup(text, group) {
 
 function fallbackAssistant(text, contacts, tasks, lang, sender, today) {
   const isAr = lang === 'ar';
-  if (/(email|e-mail|mail|message|send|write to|ايميل|إيميل|بريد|رساله|رسالة|ارسل|أرسل|راسل)/i.test(text)) {
+  const pickIds = () => {
     const groups = [...new Set(contacts.map((c) => c.group_name).filter(Boolean))].filter((g) => mentionsGroup(text, g));
     const named = contacts.filter((c) => normalize(text).includes(normalize(c.name.split(' ')[0])) && c.name.length > 1);
-    const ids = new Set([...contacts.filter((c) => groups.includes(c.group_name)), ...named].map((c) => c.id));
+    return new Set([...contacts.filter((c) => groups.includes(c.group_name)), ...named].map((c) => c.id));
+  };
+  if (/(whatsapp|واتساب|واتس|sms|مسج)/i.test(text)) {
+    return {
+      reply: isAr ? 'جهّزت رسالة واتساب. افتحها لكل شخص وأرسلها.' : 'Your WhatsApp message is ready. Open it for each person and send.',
+      actions: [{ type: 'message', channel: /sms|مسج/i.test(text) ? 'sms' : 'whatsapp', recipients: [...pickIds()], body: text }],
+    };
+  }
+  if (/(email|e-mail|mail|message|send|write to|ايميل|إيميل|بريد|رساله|رسالة|ارسل|أرسل|راسل)/i.test(text)) {
+    const ids = pickIds();
     const n = ids.size;
     return {
       reply: isAr ? `جهّزت الرسالة إلى ${n} ${n === 1 ? 'شخص' : 'أشخاص'}. هل أرسلها؟` : `The email to ${n} ${n === 1 ? 'person' : 'people'} is ready. Should I send it?`,
@@ -1042,6 +1089,9 @@ MEMORY
 ACTIONS — return zero or more in "actions"; a request with several steps gets several actions.
 - {"type":"email","recipients":[contact ids],"addresses":[email addresses said explicitly],"unmatched":[names not found],"subject":string,"body":string}
   For writing to people. Pick recipients from "contacts" by name or group: a group such as "employees", "الموظفين", "my team" or "العيال" means every contact in that group. Sign with the sender name, or the signature in memories. Never claim it was sent: the app shows it for approval.
+- {"type":"message","channel":"whatsapp"|"sms","recipients":[contact ids],"unmatched":[names not found],"body":string}
+  For WhatsApp or text messages (واتساب، رسالة نصية، مسج، "WhatsApp them"). Short and conversational, in the language requested or of the request; no subject. Only contacts whose "reach" includes "phone" can receive it. The user opens each message in WhatsApp and sends it themselves.
+  When the user just says "message" or "راسل" without a channel: use WhatsApp if the chosen people only have phones, email if they only have emails, and email if they have both.
 - {"type":"meeting","title":string,"date":"YYYY-MM-DD","time":"HH:MM","durationMin":number,"location":string,"notes":string,"attendees":[connection ids],"unmatched":[names not found]}
   For meetings with other Mudir users from "connections"; they receive an invitation on their own calendar. Default duration 30 minutes. A person who is only in contacts (not connections) goes in "unmatched".
 - {"type":"task","title":string,"date":"YYYY-MM-DD" or "","time":"HH:MM" or ""}
@@ -1086,6 +1136,7 @@ function historyForModel(rows) {
 function summarizeActions(actions) {
   return actions
     .map((a) => {
+      if (a.type === 'message') return `Prepared ${a.channel} message to ${a.recipients.map((r) => r.name).join(', ') || 'nobody yet'} | body: ${a.body.slice(0, 600)}`;
       if (a.type === 'email') return `Prepared email to ${a.recipients.map((r) => r.name).join(', ') || 'nobody yet'} | subject: ${a.subject} | body: ${a.body.slice(0, 900)}`;
       if (a.type === 'meeting') return `Prepared meeting "${a.title}" ${a.date} ${a.time} (${a.durationMin} min) with ${a.attendees.map((x) => x.name).join(', ')}${a.location ? ` at ${a.location}` : ''}`;
       if (a.type === 'task') return `Added task "${a.task.title}" ${a.task.date} ${a.task.time}`;
@@ -1131,7 +1182,7 @@ app.post('/api/assistant', auth, h(async (req, res) => {
   const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
 
   const [contacts, connections, memories, historyRows, tasks, meetings] = await Promise.all([
-    query('SELECT id, name, email, group_name FROM contacts WHERE user_id = $1 ORDER BY name LIMIT 500', [req.user.id]),
+    query('SELECT id, name, email, phone, group_name FROM contacts WHERE user_id = $1 ORDER BY name LIMIT 500', [req.user.id]),
     connectedUsers(req.user.id),
     query('SELECT id, content FROM memories WHERE user_id = $1 ORDER BY created_at LIMIT $2', [req.user.id, MEMORY_MAX]),
     query('SELECT role, content FROM assistant_messages WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2', [req.user.id, HISTORY_SENT]),
@@ -1146,7 +1197,7 @@ app.post('/api/assistant', auth, h(async (req, res) => {
       appLanguage: lang === 'en' ? 'English' : 'Arabic',
       sender: req.user.name,
       memories: memories.map((m) => ({ id: m.id, note: m.content })),
-      contacts: contacts.map((c) => ({ id: c.id, name: c.name, group: c.group_name })),
+      contacts: contacts.map((c) => ({ id: c.id, name: c.name, group: c.group_name, reach: [c.email && 'email', c.phone && 'phone'].filter(Boolean) })),
       connections: connections.map((c) => ({ id: c.id, name: c.name })),
       upcoming: {
         tasks: tasks.map((t) => ({ title: t.title, date: t.date, time: t.time })),
@@ -1167,9 +1218,21 @@ app.post('/api/assistant', auth, h(async (req, res) => {
   const rawActions = Array.isArray(out.actions) ? out.actions : out.action && out[out.action] ? [{ type: out.action, ...out[out.action] }] : [];
   const actions = [];
   for (const a of rawActions.slice(0, 4)) {
-    if (a?.type === 'email') {
+    if (a?.type === 'message') {
       const ids = new Set(Array.isArray(a.recipients) ? a.recipients : []);
-      const picked = contacts.filter((c) => ids.has(c.id)).map((c) => ({ name: c.name, email: c.email }));
+      const chosen = contacts.filter((c) => ids.has(c.id));
+      actions.push({
+        type: 'message',
+        channel: a.channel === 'sms' ? 'sms' : 'whatsapp',
+        recipients: chosen.filter((c) => c.phone).map((c) => ({ name: c.name, phone: c.phone })),
+        noPhone: chosen.filter((c) => !c.phone).map((c) => c.name),
+        unmatched: (Array.isArray(a.unmatched) ? a.unmatched : []).map(String).slice(0, 10),
+        body: String(a.body || '').slice(0, 4000),
+      });
+    } else if (a?.type === 'email') {
+      const ids = new Set(Array.isArray(a.recipients) ? a.recipients : []);
+      const picked = contacts.filter((c) => ids.has(c.id) && c.email).map((c) => ({ name: c.name, email: c.email }));
+      const noEmail = contacts.filter((c) => ids.has(c.id) && !c.email).map((c) => c.name);
       const extra = (Array.isArray(a.addresses) ? a.addresses : [])
         .map((x) => String(x).trim().toLowerCase())
         .filter((x) => EMAIL_RE.test(x) && !picked.some((p) => p.email === x))
@@ -1179,6 +1242,7 @@ app.post('/api/assistant', auth, h(async (req, res) => {
         key: id(),
         recipients: [...picked, ...extra],
         unmatched: (Array.isArray(a.unmatched) ? a.unmatched : []).map(String).slice(0, 10),
+        noEmail,
         subject: String(a.subject || '').slice(0, 300),
         body: String(a.body || '').slice(0, 10000),
       });
