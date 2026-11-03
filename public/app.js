@@ -199,6 +199,21 @@ const I18N = {
     lpProList: ['حدود استخدام أعلى بكثير', 'أولوية في الذكاء الاصطناعي', 'مزايا جديدة أولًا'],
     // Daily briefing
     briefingTitle: 'ملخص اليوم',
+    briefingReady: 'ملخص يومك جاهز',
+    briefingReadyAsk: 'أخبرني متى تريد أن أقرأه لك.',
+    readToMe: 'اقرأه لي',
+    showMe: 'اعرضه',
+    stopReading: 'إيقاف القراءة',
+    rdSchedule: 'جدولك اليوم:',
+    rdNeedReply: 'رسائل تنتظر ردك:',
+    rdImportant: 'رسائل مهمة أيضًا:',
+    rdSuggestions: 'اقتراحاتي لك:',
+    rdFrom: 'من {from}، بخصوص {subject}',
+    replyTitle: 'رد',
+    replyToName: 'رد على {name}',
+    composePh: 'اكتب ردك هنا…',
+    openingWhatsApp: 'أفتح واتساب الآن…',
+    noReadAloud: 'هذا المتصفح لا يستطيع القراءة بصوت عالٍ. يمكنك قراءة الملخص على الشاشة.',
     details: 'التفاصيل',
     briefingNow: 'لخّص يومي الآن',
     briefingWorking: 'أجهّز ملخصك…',
@@ -535,6 +550,21 @@ const I18N = {
     lpFreeList: ['Calendar & export', 'Zajel voice assistant', 'Send from your own email', 'Daily briefing'],
     lpProList: ['Much higher usage limits', 'Priority AI', 'New features first'],
     briefingTitle: "Today's briefing",
+    briefingReady: 'Your daily briefing is ready',
+    briefingReadyAsk: "Let me know when you'd like me to read it to you.",
+    readToMe: 'Read it to me',
+    showMe: 'Show me',
+    stopReading: 'Stop reading',
+    rdSchedule: 'Your schedule today:',
+    rdNeedReply: 'Waiting for your reply:',
+    rdImportant: 'Also important:',
+    rdSuggestions: 'My suggestions:',
+    rdFrom: 'From {from}, about {subject}',
+    replyTitle: 'Reply',
+    replyToName: 'Reply to {name}',
+    composePh: 'Write your reply…',
+    openingWhatsApp: 'Opening WhatsApp…',
+    noReadAloud: "This browser can't read aloud. You can read the briefing on screen.",
     details: 'Details',
     briefingNow: 'Brief me now',
     briefingWorking: 'Preparing your briefing…',
@@ -2005,7 +2035,8 @@ async function runCommand(text) {
     pending.classList.remove('thinking');
     pending.innerHTML = `${icon('sparkle')}<span>${esc(res.reply)}</span>`;
     pending.dir = 'auto';
-    speak(res.reply);
+    const wantsBriefing = (res.actions || []).some((a) => a.type === 'briefing');
+    if (!wantsBriefing) speak(res.reply);
     for (const note of res.remembered || []) {
       const el = document.createElement('div');
       el.className = 'as-memory';
@@ -2019,6 +2050,7 @@ async function runCommand(text) {
       if (action.type === 'task' && action.task) renderTaskCard(action.task);
     }
     $('#as-thread').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (wantsBriefing) await readBriefingOnRequest();
   } catch (err) {
     pending.classList.remove('thinking');
     pending.innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`;
@@ -2061,6 +2093,23 @@ function renderMessageCard(m) {
       <div class="as-actions"><button class="btn ghost lg" data-copy-msg>${icon('copy')}${esc(t('copy'))}</button><button class="btn quiet lg" data-cancel>${esc(t('cancel'))}</button></div>`;
   }
   draw();
+  // One person on WhatsApp: no extra tap, open the chat with the message ready straight away.
+  // The card stays as a fallback in case the browser blocks it.
+  if (channel === 'whatsapp' && m.recipients.length === 1 && m.body.trim()) {
+    const r = m.recipients[0];
+    const link = waLink(r.phone, m.body);
+    toast(t('openingWhatsApp'));
+    setTimeout(() => {
+      if (matchMedia('(pointer: coarse)').matches) location.href = link;
+      else {
+        const win = window.open(link, '_blank');
+        if (!win) return;
+        win.opener = null;
+      }
+      r.opened = true;
+      draw();
+    }, 700);
+  }
   card.addEventListener('input', (e) => {
     if (e.target.matches('[data-body]')) m.body = e.target.value;
   });
@@ -2747,7 +2796,6 @@ async function loadBriefing({ expand = false } = {}) {
   try {
     const res = await api('/api/briefing');
     briefing = res.briefing && res.briefing.date === res.today ? res.briefing : null;
-    if (expand) briefingOpen = true;
     renderBriefing();
     // The scheduled time passed while the phone was off or the scheduler was late: catch up now.
     if (res.due) await briefMeNow({ quiet: true });
@@ -2763,10 +2811,66 @@ async function briefMeNow({ quiet = false } = {}) {
   }
   try {
     briefing = (await api('/api/briefing/now', { method: 'POST' })).briefing;
-    briefingOpen = true;
+    // A briefing made in the background waits for the user to ask; one they asked for opens right away.
+    briefingOpen = !quiet;
+    if (!quiet) markBriefingSeen();
   } catch (err) {
     if (!quiet) toast(err.message, true);
   }
+  renderBriefing();
+}
+
+// "Seen" is per day and per device, so a new day's briefing announces itself again.
+const briefingSeen = () => briefing && store.get('zajel.briefingSeen') === briefing.date;
+function markBriefingSeen() {
+  if (briefing) store.set('zajel.briefingSeen', briefing.date);
+}
+
+// Reads the briefing aloud, sentence by sentence (long single utterances get cut off on iPhones).
+let reading = false;
+function briefingScript(b) {
+  const L = (k, v) => t(k, v);
+  const parts = [b.headline, b.summary];
+  if (b.schedule?.length) parts.push(L('rdSchedule'), ...b.schedule.map((s) => s.replace(/—/g, '،')));
+  if (b.emails?.needReply?.length) parts.push(L('rdNeedReply'), ...b.emails.needReply.map((m) => L('rdFrom', { from: m.from, subject: m.subject }) + (m.why ? `. ${m.why}` : '')));
+  if (b.emails?.important?.length) parts.push(L('rdImportant'), ...b.emails.important.map((m) => L('rdFrom', { from: m.from, subject: m.subject })));
+  if (b.suggestions?.length) parts.push(L('rdSuggestions'), ...b.suggestions);
+  return parts.filter(Boolean);
+}
+
+function readBriefingAloud() {
+  if (!briefing || !('speechSynthesis' in window)) return toast(t('noReadAloud'), true);
+  speechSynthesis.cancel();
+  const lang = briefing.lang === 'en' ? 'en' : 'ar';
+  const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang));
+  const lines = briefingScript(briefing);
+  reading = true;
+  lines.forEach((line, i) => {
+    const u = new SpeechSynthesisUtterance(line);
+    u.lang = lang === 'ar' ? 'ar-SA' : 'en-US';
+    if (voice) u.voice = voice;
+    u.rate = lang === 'ar' ? 0.95 : 1;
+    if (i === lines.length - 1) u.onend = () => { reading = false; renderBriefing(); };
+    speechSynthesis.speak(u);
+  });
+  markBriefingSeen();
+  briefingOpen = true;
+  renderBriefing();
+}
+
+// "Read my briefing" from the assistant: make today's briefing if there isn't one, show it and read it.
+async function readBriefingOnRequest() {
+  if (!briefing || briefing.date !== today()) await briefMeNow({ quiet: true });
+  if (!briefing) return;
+  closeSheets();
+  showView('calendar');
+  readBriefingAloud();
+  $('#briefing-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function stopReading() {
+  try { speechSynthesis.cancel(); } catch { /* nothing playing */ }
+  reading = false;
   renderBriefing();
 }
 
@@ -2783,9 +2887,21 @@ function renderBriefing() {
     return;
   }
   const b = briefing;
+  card.hidden = false;
+  // Ready but not opened yet: announce it and let the user choose when.
+  if (!briefingOpen && !briefingSeen()) {
+    card.innerHTML = `<div class="briefing ready">
+      <h2>${icon('sun')}<span>${esc(t('briefingReady'))}</span></h2>
+      <p>${esc(t('briefingReadyAsk'))}</p>
+      <div class="row gap wrap">
+        <button class="btn primary" data-brief-read>${icon('speaker')}${esc(t('readToMe'))}</button>
+        <button class="btn" data-brief-show>${esc(t('showMe'))}</button>
+      </div></div>`;
+    return;
+  }
   const mailItem = (m) => `<li><strong dir="auto">${esc(m.from)}</strong> · <span dir="auto">${esc(m.subject)}</span>
     ${m.why ? `<br><span class="muted small" dir="auto">${esc(m.why)}</span>` : ''}
-    <br><button class="btn sm" data-reply-from="${esc(m.from)}" data-reply-subject="${esc(m.subject)}" style="margin-top:6px">${icon('mail')}${esc(t('replyTo'))}</button></li>`;
+    <br><button class="btn sm" data-reply='${esc(JSON.stringify({ to: m.fromEmail || '', name: m.from, subject: m.subject, threadId: m.threadId || '', messageId: m.messageId || '' }))}' style="margin-top:6px">${icon('mail')}${esc(t('replyTo'))}</button></li>`;
   const inboxNote = !b.inbox?.available && b.inbox?.reason && b.inbox.reason !== 'off'
     ? `<div class="row gap wrap"><span class="muted small">${esc(t({ needsRead: 'inboxNeedsRead', notConnected: 'inboxNotConnected', reconnect: 'inboxReconnect' }[b.inbox.reason] || 'inboxNotConnected'))}</span>
        ${state.config.integrations.gmail ? `<a class="btn sm" href="/api/google/connect">${icon('google', 'g')}${esc(t('reconnectGmail'))}</a>` : ''}</div>`
@@ -2802,6 +2918,9 @@ function renderBriefing() {
       ${b.suggestions?.length ? `<h3 class="row gap" style="font-size:0.95rem;color:#fff">${icon('sparkle')}${esc(t('suggestions'))}</h3><ul>${b.suggestions.map((s) => `<li dir="auto">${esc(s)}</li>`).join('')}</ul>` : ''}
       ${inboxNote}` : ''}
     <div class="row gap wrap">
+      ${reading
+        ? `<button class="btn sm" data-brief-stop>${icon('x')}${esc(t('stopReading'))}</button>`
+        : `<button class="btn sm" data-brief-read>${icon('speaker')}${esc(t('readToMe'))}</button>`}
       <button class="btn sm" data-brief-toggle>${esc(briefingOpen ? t('close') : t('details'))}</button>
       <button class="btn sm" data-brief-now>${icon('sparkle')}${esc(t('briefingNow'))}</button>
     </div>
@@ -2810,15 +2929,63 @@ function renderBriefing() {
 
 $('#briefing-card').addEventListener('click', (e) => {
   if (e.target.closest('[data-brief-now]')) return briefMeNow();
-  if (e.target.closest('[data-brief-toggle]')) {
-    briefingOpen = !briefingOpen;
+  if (e.target.closest('[data-brief-read]')) return readBriefingAloud();
+  if (e.target.closest('[data-brief-stop]')) return stopReading();
+  if (e.target.closest('[data-brief-show]')) {
+    briefingOpen = true;
+    markBriefingSeen();
     return renderBriefing();
   }
-  const reply = e.target.closest('[data-reply-from]');
+  if (e.target.closest('[data-brief-toggle]')) {
+    briefingOpen = !briefingOpen;
+    markBriefingSeen();
+    return renderBriefing();
+  }
+  const reply = e.target.closest('[data-reply]');
   if (reply) {
-    openAssistant();
-    $('#as-input').value = t('replyCmd', { from: reply.dataset.replyFrom, subject: reply.dataset.replySubject });
-    $('#as-input').focus();
+    try {
+      openCompose(JSON.parse(reply.dataset.reply));
+    } catch { /* malformed data: ignore */ }
+  }
+});
+
+// ---------- Blank reply page ----------
+let composeState = null;
+function openCompose({ to = '', name = '', subject = '', threadId = '', messageId = '' } = {}) {
+  composeState = { threadId, messageId, key: newKey(), name };
+  $('#cp-to').value = to;
+  $('#cp-subject').value = subject && !/^(re|رد)\s*:/i.test(subject) ? `Re: ${subject}` : subject;
+  $('#cp-body').value = '';
+  $('#compose-title').textContent = name ? t('replyToName', { name }) : t('replyTitle');
+  openSheet('sheet-compose');
+  setTimeout(() => $('#cp-body').focus(), 200);
+}
+
+$('#cp-send').addEventListener('click', async () => {
+  const to = $('#cp-to').value.trim();
+  const subject = $('#cp-subject').value.trim();
+  const body = $('#cp-body').value;
+  if (!EMAIL_OK.test(to)) return toast(t('invalidEmail'), true);
+  if (!body.trim()) return toast(t('needSubjectBody'), true);
+  // Without a connected Gmail, hand the written reply to Gmail on the web.
+  if (!state.user.gmail) {
+    window.open(`https://mail.google.com/mail/?${new URLSearchParams({ view: 'cm', fs: '1', to, su: subject, body })}`, '_blank', 'noopener');
+    return closeSheets();
+  }
+  const btn = $('#cp-send');
+  busy(btn, true, t('sending'));
+  try {
+    const res = await api('/api/email/send', {
+      method: 'POST',
+      body: { to, subject, body, confirm: true, key: composeState?.key, threadId: composeState?.threadId, inReplyTo: composeState?.messageId },
+    });
+    state.user = res.user;
+    closeSheets();
+    toast(t('emailSent', { email: state.user.gmail }));
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    busy(btn, false);
   }
 });
 

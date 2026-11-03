@@ -923,13 +923,13 @@ main { padding: 0 16px; }
 :root {
   --bg: #faf9f6;
   --surface: #ffffff;
-  --sidebar: #0d0d0e;
+  --sidebar: #f2efe9; /* soft panel colour (chat bubbles, code boxes) */
   --hover: rgba(28, 25, 20, 0.045);
   --active: rgba(28, 25, 20, 0.08);
   --ink: #1d1c1a;
   --ink-strong: #0c0c0b;
-  --muted: rgba(29, 28, 26, 0.6);
-  --faint: rgba(29, 28, 26, 0.4);
+  --muted: rgba(29, 28, 26, 0.7);
+  --faint: rgba(29, 28, 26, 0.5);
   --line: rgba(29, 28, 26, 0.1);
   --line-soft: rgba(29, 28, 26, 0.06);
   --blue: #121211; /* primary actions are ink-black */
@@ -950,13 +950,13 @@ main { padding: 0 16px; }
   :root {
     --bg: #0b0b0c;
     --surface: #141416;
-    --sidebar: #070708;
+    --sidebar: #1a1a1c;
     --hover: rgba(242, 238, 230, 0.05);
     --active: rgba(242, 238, 230, 0.09);
     --ink: rgba(242, 238, 230, 0.86);
     --ink-strong: #f2eee6;
-    --muted: rgba(242, 238, 230, 0.56);
-    --faint: rgba(242, 238, 230, 0.36);
+    --muted: rgba(242, 238, 230, 0.68);
+    --faint: rgba(242, 238, 230, 0.48);
     --line: rgba(242, 238, 230, 0.1);
     --line-soft: rgba(242, 238, 230, 0.06);
     --blue: #f2eee6;
@@ -1088,6 +1088,38 @@ main { padding: 0 16px; }
 .lp-say-text::after { color: #c9a96e; }
 .lp-price.pro { border-color: #c9a96e; box-shadow: 0 0 0 1px #c9a96e, 0 20px 60px rgba(201, 169, 110, 0.12); }
 .lp-card h3 .ic { color: #d9bd86; }
+
+/* Assistant replies: always solid, readable text */
+.as-msg.mudir { color: var(--ink-strong); line-height: 1.65; }
+.as-msg.thinking { color: var(--muted); }
+
+/* Reply: a blank page, like writing a fresh email */
+#sheet-compose { min-height: min(80dvh, 720px); }
+.compose { display: flex; flex-direction: column; flex: 1; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg); }
+.compose-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); }
+.compose-row span { color: var(--muted); font-size: 0.9rem; min-width: 64px; }
+.compose-row input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; color: var(--ink-strong); padding: 4px 0; min-width: 0; }
+#cp-body { flex: 1; min-height: 42dvh; border: 0; outline: 0; resize: none; padding: 16px 14px; font: inherit; font-size: 1.02rem; line-height: 1.75; color: var(--ink-strong); background: transparent; }
+#cp-body::placeholder { color: var(--faint); }
+
+/* Briefing is ready: a calm invitation, not a wall of text */
+.briefing.ready { align-items: flex-start; gap: 12px; animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.briefing.ready h2 { font-size: 1.2rem; }
+.briefing.ready .btn { min-height: 44px; padding-inline: 18px; }
+.briefing.ready h2 .ic { animation: glow 2.8s ease-in-out infinite; }
+@keyframes glow { 50% { filter: drop-shadow(0 0 6px rgba(217, 189, 134, 0.8)); } }
+
+/* Smoothness: gentle entrances and eased state changes everywhere */
+html { scroll-behavior: smooth; }
+.view:not([hidden]) { animation: rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.as-msg, .as-card, .as-memory { animation: rise 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.as-msg.history { animation: none; }
+#briefing-card > .briefing { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+.btn, .icon-btn, .tab, .seg-btn, .chip, .day, .person, .nav-item { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease; }
+.btn:active, .icon-btn:active { transform: scale(0.97); }
+.sheet { animation-duration: 0.28s; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+.backdrop { animation-duration: 0.25s; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
