@@ -214,6 +214,20 @@ const I18N = {
     composePh: 'اكتب ردك هنا…',
     openingWhatsApp: 'أفتح واتساب الآن…',
     noReadAloud: 'هذا المتصفح لا يستطيع القراءة بصوت عالٍ. يمكنك قراءة الملخص على الشاشة.',
+    checkingInbox: 'أطّلع على بريدك…',
+    importantEmails: 'أهم الرسائل من الأشخاص',
+    needsReplyTag: 'ينتظر ردك',
+    noImportantEmails: 'لا توجد رسائل مهمة من أشخاص في الأيام الأخيرة.',
+    skippedMachine: 'تجاهلتُ {n} رسائل تلقائية (تنبيهات أمان، عروض، إشعارات).',
+    wakeTitle: 'قل «هاي زاجل»',
+    wakeHelp: 'استمع بدون لمس أثناء فتح زاجل على الشاشة، ثم قل طلبك، مثل: «هاي زاجل، اقرأ لي أهم الإيميلات». عند قفل الهاتف استخدم «يا Siri، زاجل».',
+    wakeUnsupported: 'هذا المتصفح لا يدعم الاستماع المستمر. جرّب Chrome، أو استخدم «يا Siri، زاجل» على iPhone.',
+    wakeSay: 'قل «هاي زاجل»',
+    wakePaused: 'الاستماع متوقف — اضغط للتشغيل',
+    wakeListening: 'أسمعك… تفضّل',
+    wakeOnToast: 'تم. قل «هاي زاجل» في أي وقت أثناء فتح التطبيق.',
+    wakeOff: 'أوقفت الاستماع بدون لمس.',
+    wakeDenied: 'لا يمكن استخدام الميكروفون. اسمح به من إعدادات المتصفح.',
     details: 'التفاصيل',
     briefingNow: 'لخّص يومي الآن',
     briefingWorking: 'أجهّز ملخصك…',
@@ -565,6 +579,20 @@ const I18N = {
     composePh: 'Write your reply…',
     openingWhatsApp: 'Opening WhatsApp…',
     noReadAloud: "This browser can't read aloud. You can read the briefing on screen.",
+    checkingInbox: 'Checking your inbox…',
+    importantEmails: 'Most important emails from people',
+    needsReplyTag: 'Waiting for you',
+    noImportantEmails: 'No important emails from people in the last few days.',
+    skippedMachine: 'Skipped {n} automatic emails (security alerts, promotions, notifications).',
+    wakeTitle: 'Say "Hey Zajel"',
+    wakeHelp: 'Hands-free while Zajel is open on screen: say your request, like "Hey Zajel, read me my important emails". When your phone is locked, use "Hey Siri, Zajel".',
+    wakeUnsupported: "This browser can't listen continuously. Try Chrome, or use \"Hey Siri, Zajel\" on iPhone.",
+    wakeSay: 'Say "Hey Zajel"',
+    wakePaused: 'Listening paused — tap to resume',
+    wakeListening: "I'm listening…",
+    wakeOnToast: 'Done. Say "Hey Zajel" any time while the app is open.',
+    wakeOff: 'Hands-free listening is off.',
+    wakeDenied: "Zajel can't use the microphone. Allow it in your browser settings.",
     details: 'Details',
     briefingNow: 'Brief me now',
     briefingWorking: 'Preparing your briefing…',
@@ -913,7 +941,10 @@ $('#auth-form').addEventListener('submit', async (e) => {
 
 $('#logout').addEventListener('click', async () => {
   await api('/api/auth/logout', { method: 'POST' });
+  stopWake();
+  stopSaying();
   state.user = null;
+  updateWakePill();
   state.tasks = [];
   state.contacts = [];
   state.connections = [];
@@ -1029,6 +1060,7 @@ async function enterApp() {
   $('#auth').hidden = true;
   $('#app').hidden = false;
   registerServiceWorker();
+  startWake();
   const now = new Date();
   state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   state.calDay = today();
@@ -1716,7 +1748,10 @@ function setVoiceUI(mode, text = '') {
   st.classList.toggle('processing', mode === 'processing');
   $('#as-status-text').textContent = text;
   if (mode !== 'recording') $('#as-timer').textContent = '';
-  if (mode === 'idle') setLevel(0);
+  if (mode === 'idle') {
+    setLevel(0);
+    setTimeout(startWake, 800); // hands-free listening resumes once the mic is free
+  }
 }
 
 // iOS only lets a page speak after a tap, so prime speech output on the tap that starts listening.
@@ -1733,8 +1768,9 @@ function unlockSpeechOutput() {
 function startVoice() {
   if (voice) return finishVoice(); // tapping again means "I'm done"
   // Never talk over the user: opening the mic silences Zajel straight away.
-  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch { /* nothing to stop */ }
-  unlockSpeechOutput();
+  stopSaying();
+  stopWake(); // the hands-free listener gives the microphone to this request
+  unlockAudio();
   if (useServerSpeech()) return startRecording();
   if (SpeechRec) return startBrowserRecognition();
   toast(t('noSpeech'), true);
@@ -1960,16 +1996,292 @@ function addMsg(kind, html) {
 
 function speak(text) {
   // Stay quiet while the user is speaking.
-  if (!lastWasVoice || voice || !('speechSynthesis' in window) || !text) return;
-  try {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = state.lang === 'ar' ? 'ar-SA' : 'en-US';
-    const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(state.lang));
-    if (voice) u.voice = voice;
-    speechSynthesis.cancel();
-    speechSynthesis.speak(u);
-  } catch { /* speech output is optional */ }
+  if (!lastWasVoice || voice || !text) return;
+  say(text);
 }
+
+// ---------- Zajel's voice ----------
+// A natural AI voice from the server, played as audio; the browser's built-in voice is the fallback.
+// Text is spoken in chunks so the first words start quickly while the rest is prepared.
+const ttsAudio = new Audio();
+ttsAudio.preload = 'auto';
+let sayToken = 0;
+let sayEndCurrent = null;
+let saying = false;
+
+// iOS only plays sound started by a tap: play a moment of silence on the tap, then later audio may play.
+let audioUnlocked = false;
+function unlockAudio() {
+  unlockSpeechOutput();
+  if (audioUnlocked) return;
+  try {
+    const rate = 8000;
+    const buf = new ArrayBuffer(44 + 2 * 80);
+    const v = new DataView(buf);
+    const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, 'RIFF'); v.setUint32(4, 36 + 160, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, 160, true);
+    ttsAudio.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    ttsAudio.play().then(() => { audioUnlocked = true; }).catch(() => {});
+  } catch { /* audio output is optional */ }
+}
+
+const isArabicText = (s) => /[؀-ۿ]/.test(s);
+
+// The first line is its own chunk so the voice starts quickly; the rest is grouped into larger pieces.
+function chunkLines(lines, max = 420) {
+  const [first, ...rest] = lines.map((s) => (/[.!?؟…:]$/.test(s) ? s : `${s}.`));
+  const out = [first];
+  let cur = '';
+  for (const piece of rest) {
+    if (cur && `${cur} ${piece}`.length > max) {
+      out.push(cur);
+      cur = piece;
+    } else cur = cur ? `${cur} ${piece}` : piece;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function playUrl(url, token) {
+  return new Promise((resolve, reject) => {
+    if (token !== sayToken) return resolve();
+    sayEndCurrent = resolve;
+    ttsAudio.onended = () => resolve();
+    ttsAudio.onerror = () => reject(new Error('audio'));
+    ttsAudio.src = url;
+    ttsAudio.play().catch(reject);
+  });
+}
+
+function stopSaying() {
+  sayToken += 1;
+  saying = false;
+  try { ttsAudio.pause(); } catch { /* nothing playing */ }
+  sayEndCurrent?.();
+  sayEndCurrent = null;
+  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch { /* nothing playing */ }
+}
+
+async function say(lines, { lang, onEnd } = {}) {
+  stopSaying();
+  const token = sayToken;
+  lines = (Array.isArray(lines) ? lines : [lines]).map((s) => String(s || '').trim()).filter(Boolean);
+  if (!lines.length) return onEnd?.();
+  lang = lang || (isArabicText(lines.join(' ')) ? 'ar' : 'en');
+  const chunks = chunkLines(lines);
+  saying = true;
+  const done = () => {
+    if (token !== sayToken) return;
+    saying = false;
+    onEnd?.();
+  };
+  let i = 0;
+  if (state.config?.integrations.openai) {
+    const pending = [];
+    const fetchChunk = (n) => (pending[n] ||= fetch('/api/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Lang': state.lang },
+      body: JSON.stringify({ text: chunks[n], lang }),
+      credentials: 'same-origin',
+    }).then((r) => (r.ok ? r.blob() : Promise.reject(new Error('tts')))).then((b) => URL.createObjectURL(b)));
+    try {
+      for (; i < chunks.length; i++) {
+        const url = await fetchChunk(i);
+        if (i + 1 < chunks.length) fetchChunk(i + 1).catch(() => {});
+        if (token !== sayToken) return;
+        await playUrl(url, token);
+        URL.revokeObjectURL(url);
+        if (token !== sayToken) return;
+      }
+      return done();
+    } catch {
+      if (token !== sayToken) return;
+      // Fall through to the browser voice from where the AI voice stopped.
+    }
+  }
+  browserSay(chunks.slice(i), lang, token, done);
+}
+
+// The best voice the device has: "natural", "enhanced" and "premium" voices sound far less robotic.
+function bestVoice(lang) {
+  const voices = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang));
+  const score = (v) => (/natural|neural|premium|enhanced|online/i.test(v.name) ? 4 : 0) + (/google|siri|microsoft/i.test(v.name) ? 2 : 0)
+    + (lang === 'ar' && /sa|ae|qa|kw/i.test(v.lang) ? 1 : 0) + (lang === 'en' && /en-(us|gb)/i.test(v.lang) ? 1 : 0);
+  return voices.sort((a, b) => score(b) - score(a))[0] || null;
+}
+
+function browserSay(chunks, lang, token, done) {
+  if (!('speechSynthesis' in window) || !chunks.length) return done();
+  try {
+    speechSynthesis.cancel();
+    const v = bestVoice(lang);
+    chunks.forEach((text, n) => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang === 'ar' ? 'ar-SA' : 'en-US';
+      if (v) u.voice = v;
+      u.rate = lang === 'ar' ? 0.95 : 1;
+      if (n === chunks.length - 1) u.onend = u.onerror = () => done();
+      speechSynthesis.speak(u);
+    });
+  } catch {
+    done();
+  }
+  void token;
+}
+
+// "Read me my important emails": the top emails from real people, shown in the chat and read aloud.
+async function readImportantEmails() {
+  const pending = addMsg('mudir thinking', `${icon('inbox')}<span>${esc(t('checkingInbox'))}</span>`);
+  let res;
+  try {
+    res = await api('/api/inbox/important', { method: 'POST' });
+  } catch (err) {
+    pending.classList.remove('thinking');
+    pending.innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`;
+    return;
+  }
+  pending.remove();
+  const card = document.createElement('div');
+  card.className = 'as-card';
+  if (!res.available) {
+    const note = t({ needsRead: 'inboxNeedsRead', notConnected: 'inboxNotConnected', reconnect: 'inboxReconnect' }[res.reason] || 'inboxNotConnected');
+    card.innerHTML = `<div class="callout yellow">${icon('alert')}<span>${esc(note)}</span></div>
+      ${state.config.integrations.gmail ? `<a class="btn google lg" href="/api/google/connect">${icon('google', 'g')}${esc(t('reconnectGmail'))}</a>` : ''}`;
+    $('#as-thread').append(card);
+    say(note);
+    return;
+  }
+  card.innerHTML = `<div class="row gap"><svg class="ic" style="color:var(--gold)"><use href="#i-inbox"/></svg><strong>${esc(t('importantEmails'))}</strong>
+      <button class="btn quiet sm" data-stop-say style="margin-inline-start:auto">${icon('x')}${esc(t('stopReading'))}</button></div>
+    ${res.emails.length
+      ? `<ul class="mail-list">${res.emails.map((m, i) => `<li>
+          <div class="row gap"><span class="avatar">${esc(initial(m.from))}</span>
+            <div class="grow"><p class="strong" dir="auto">${esc(m.from)}</p><p class="muted small" dir="auto">${esc(m.subject)}</p></div>
+            ${m.needsReply ? `<span class="tag gold">${esc(t('needsReplyTag'))}</span>` : ''}</div>
+          <p dir="auto">${esc(m.summary)}</p>
+          <button class="btn ghost sm" data-reply-i="${i}">${icon('mail')}${esc(t('replyTo'))}</button></li>`).join('')}</ul>`
+      : `<p class="muted" dir="auto">${esc(res.intro || t('noImportantEmails'))}</p>`}
+    ${res.skipped ? `<p class="muted small">${esc(t('skippedMachine', { n: res.skipped }))}</p>` : ''}`;
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('[data-stop-say]')) return stopSaying();
+    const b = e.target.closest('[data-reply-i]');
+    if (!b) return;
+    const m = res.emails[Number(b.dataset.replyI)];
+    stopSaying();
+    openCompose({ to: m.fromEmail, name: m.from, subject: m.subject, threadId: m.threadId, messageId: m.messageId });
+  });
+  $('#as-thread').append(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const L = (m) => (res.lang === 'ar' ? `من ${m.from}. ${m.summary}` : `From ${m.from}. ${m.summary}`);
+  say([res.intro, ...res.emails.map((m) => (m.summary.includes(m.from) ? m.summary : L(m))), res.outro], { lang: res.lang });
+}
+
+// ---------- "Hey Zajel": hands-free while the app is open ----------
+// Listens on the device for the wake phrase, then takes the rest of the sentence (or the next one) as a request.
+// Works where the browser offers speech recognition and only while Zajel is open on screen.
+const WAKE_EN = /\b(?:(?:hey|hi|hello|ok(?:ay)?|ya)[\s,]+(?:zaj\w*|zag[ei]l|zageel|hazel|sajal|zahel|the jail)|zajel|zajil|zajal|zajeel)\b/i;
+const WAKE_AR = /(?:(?:يا|هاي|هلا|هيه|أوكي|اوكي)\s*)?(?:ال)?زاجل/;
+const wake = { rec: null, armedUntil: 0, restart: null };
+const wakeEnabled = () => store.get('zajel.wake') === '1';
+const wakeSupported = () => Boolean(SpeechRec);
+
+function setWakeEnabled(on) {
+  store.set('zajel.wake', on ? '1' : '0');
+  if (on) startWake();
+  else stopWake();
+}
+
+function startWake() {
+  clearTimeout(wake.restart);
+  if (!wakeSupported() || !wakeEnabled() || wake.rec || voice || document.hidden || !state.user) return updateWakePill();
+  const rec = new SpeechRec();
+  rec.continuous = true;
+  rec.interimResults = false;
+  rec.lang = getSpeechLang() === 'ar' ? 'ar-SA' : 'en-US';
+  rec.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) onWakeHeard(e.results[i][0].transcript || '');
+    }
+  };
+  rec.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      store.set('zajel.wake', '0');
+      toast(t('wakeDenied'), true);
+      if (state.view === 'settings') renderSettings();
+    }
+  };
+  rec.onend = () => {
+    if (wake.rec === rec) wake.rec = null;
+    updateWakePill();
+    // Browsers stop listening after a while: start again while the setting is on.
+    if (wakeEnabled() && !voice && !document.hidden) wake.restart = setTimeout(startWake, 500);
+  };
+  try {
+    rec.start();
+    wake.rec = rec;
+  } catch { /* already listening */ }
+  updateWakePill();
+}
+
+function stopWake() {
+  clearTimeout(wake.restart);
+  const rec = wake.rec;
+  wake.rec = null;
+  try { rec?.abort(); } catch { /* already stopped */ }
+  updateWakePill();
+}
+
+function onWakeHeard(text) {
+  if (voice || saying) return; // never react to Zajel's own voice
+  text = text.trim();
+  const m = text.match(WAKE_AR) || text.match(WAKE_EN);
+  let cmd = '';
+  if (m) cmd = text.slice(m.index + m[0].length).replace(/^[\s,،.!؟?]+/, '').trim();
+  else if (Date.now() < wake.armedUntil) cmd = text;
+  else return;
+  if (cmd.split(/\s+/).filter(Boolean).length >= 2) {
+    wake.armedUntil = 0;
+    updateWakePill();
+    openAssistant(cmd, { voice: true });
+  } else {
+    // Just the name: answer and wait for the request.
+    wake.armedUntil = Date.now() + 9000;
+    updateWakePill(true);
+    toast(t('wakeListening'));
+    setTimeout(() => updateWakePill(), 9000);
+  }
+}
+
+function updateWakePill(armed = Date.now() < wake.armedUntil) {
+  let pill = $('#wake-pill');
+  const show = wakeEnabled() && wakeSupported() && Boolean(state.user) && !$('#app')?.hidden;
+  if (!show) {
+    pill?.remove();
+    return;
+  }
+  if (!pill) {
+    pill = document.createElement('button');
+    pill.id = 'wake-pill';
+    pill.type = 'button';
+    pill.addEventListener('click', () => {
+      if (wake.rec) {
+        setWakeEnabled(false);
+        toast(t('wakeOff'));
+      } else startWake();
+    });
+    document.body.append(pill);
+  }
+  pill.classList.toggle('live', Boolean(wake.rec));
+  pill.classList.toggle('armed', armed);
+  pill.innerHTML = `<span class="dot"></span>${esc(armed ? t('wakeListening') : wake.rec ? t('wakeSay') : t('wakePaused'))}`;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') stopWake();
+  else startWake();
+});
 
 $('#as-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -2036,7 +2348,8 @@ async function runCommand(text) {
     pending.innerHTML = `${icon('sparkle')}<span>${esc(res.reply)}</span>`;
     pending.dir = 'auto';
     const wantsBriefing = (res.actions || []).some((a) => a.type === 'briefing');
-    if (!wantsBriefing) speak(res.reply);
+    const wantsEmails = (res.actions || []).some((a) => a.type === 'emails');
+    if (!wantsBriefing && !wantsEmails) speak(res.reply);
     for (const note of res.remembered || []) {
       const el = document.createElement('div');
       el.className = 'as-memory';
@@ -2050,7 +2363,8 @@ async function runCommand(text) {
       if (action.type === 'task' && action.task) renderTaskCard(action.task);
     }
     $('#as-thread').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    if (wantsBriefing) await readBriefingOnRequest();
+    if (wantsEmails) await readImportantEmails();
+    else if (wantsBriefing) await readBriefingOnRequest();
   } catch (err) {
     pending.classList.remove('thinking');
     pending.innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`;
@@ -2839,19 +3153,12 @@ function briefingScript(b) {
 }
 
 function readBriefingAloud() {
-  if (!briefing || !('speechSynthesis' in window)) return toast(t('noReadAloud'), true);
-  speechSynthesis.cancel();
-  const lang = briefing.lang === 'en' ? 'en' : 'ar';
-  const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang));
-  const lines = briefingScript(briefing);
+  if (!briefing) return toast(t('noReadAloud'), true);
+  unlockAudio();
   reading = true;
-  lines.forEach((line, i) => {
-    const u = new SpeechSynthesisUtterance(line);
-    u.lang = lang === 'ar' ? 'ar-SA' : 'en-US';
-    if (voice) u.voice = voice;
-    u.rate = lang === 'ar' ? 0.95 : 1;
-    if (i === lines.length - 1) u.onend = () => { reading = false; renderBriefing(); };
-    speechSynthesis.speak(u);
+  say(briefingScript(briefing), {
+    lang: briefing.lang === 'en' ? 'en' : 'ar',
+    onEnd: () => { reading = false; renderBriefing(); },
   });
   markBriefingSeen();
   briefingOpen = true;
@@ -2869,7 +3176,7 @@ async function readBriefingOnRequest() {
 }
 
 function stopReading() {
-  try { speechSynthesis.cancel(); } catch { /* nothing playing */ }
+  stopSaying();
   reading = false;
   renderBriefing();
 }
@@ -3137,7 +3444,16 @@ async function renderSettings() {
       <li>${t('siriStep1')}</li><li>${t('siriStep2')}</li><li>${t('siriStep3')}</li><li>${t('siriStep4')}</li><li>${t('siriStep5')}</li>
     </ol>
     <div class="code-box" style="margin-top:12px"><code>${esc(siriLink)}</code><button class="btn ghost" id="copy-siri">${icon('copy')}${esc(t('copyLink'))}</button></div>
-    <p class="muted small" style="margin-top:8px">${esc(t('siriNote'))}</p>`;
+    <p class="muted small" style="margin-top:8px">${esc(t('siriNote'))}</p>
+    <div class="setting-row wake-row">
+      <span><span class="strong">${esc(t('wakeTitle'))}</span><br><span class="muted small">${esc(t(wakeSupported() ? 'wakeHelp' : 'wakeUnsupported'))}</span></span>
+      <label class="switch"><input type="checkbox" id="wake-on" ${wakeEnabled() && wakeSupported() ? 'checked' : ''} ${wakeSupported() ? '' : 'disabled'} /><span></span></label>
+    </div>`;
+  $('#wake-on').onchange = (e) => {
+    unlockAudio();
+    setWakeEnabled(e.target.checked);
+    toast(t(e.target.checked ? 'wakeOnToast' : 'wakeOff'));
+  };
   $('#copy-siri').onclick = async () => {
     try {
       await navigator.clipboard.writeText(siriLink);
